@@ -124,6 +124,7 @@ static inline void dw_spi_debugfs_remove(struct dw_spi *dws)
 void dw_spi_set_cs(struct spi_device *spi, bool enable)
 {
 	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
+	bool cs_high = !!(spi->mode & SPI_CS_HIGH);
 
 	/*
 	 * DW SPI controller demands any native CS being set in order to
