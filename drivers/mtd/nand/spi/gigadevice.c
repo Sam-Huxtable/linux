@@ -181,6 +181,35 @@ static const struct mtd_ooblayout_ops gd5fxgq4xc_oob_256_ops = {
 	.free = gd5fxgq4xc_ooblayout_256_free,
 };
 
+static int gd5fxgq4xc_ooblayout_256_ecc(struct mtd_info *mtd, int section,
+					struct mtd_oob_region *oobregion)
+{
+	if (section)
+		return -ERANGE;
+
+	oobregion->offset = 128;
+	oobregion->length = 128;
+
+	return 0;
+}
+
+static int gd5fxgq4xc_ooblayout_256_free(struct mtd_info *mtd, int section,
+					 struct mtd_oob_region *oobregion)
+{
+	if (section)
+		return -ERANGE;
+
+	oobregion->offset = 1;
+	oobregion->length = 127;
+
+	return 0;
+}
+
+static const struct mtd_ooblayout_ops gd5fxgq4xc_oob_256_ops = {
+	.ecc = gd5fxgq4xc_ooblayout_256_ecc,
+	.free = gd5fxgq4xc_ooblayout_256_free,
+};
+
 static int gd5fxgq4uexxg_ecc_get_status(struct spinand_device *spinand,
 					u8 status)
 {
