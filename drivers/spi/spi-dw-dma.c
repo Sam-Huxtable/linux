@@ -151,8 +151,6 @@ static void dw_spi_dma_exit(struct dw_spi *dws)
 		dmaengine_terminate_sync(dws->rxchan);
 		dma_release_channel(dws->rxchan);
 	}
-
-	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
 static irqreturn_t dw_spi_dma_transfer_handler(struct dw_spi *dws)
@@ -244,7 +242,6 @@ static void dw_spi_dma_tx_done(void *arg)
 	if (test_bit(RX_BUSY, &dws->dma_chan_busy))
 		return;
 
-	dw_writel(dws, DW_SPI_DMACR, 0);
 	complete(&dws->dma_completion);
 }
 
@@ -347,7 +344,6 @@ static void dw_spi_dma_rx_done(void *arg)
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
 		return;
 
-	dw_writel(dws, DW_SPI_DMACR, 0);
 	complete(&dws->dma_completion);
 }
 
@@ -441,13 +437,13 @@ static int dw_spi_dma_transfer_all(struct dw_spi *dws,
 	/* Submit the DMA Tx transfer */
 	ret = dw_spi_dma_submit_tx(dws, xfer);
 	if (ret)
-		return ret;
+		goto err_clear_dmac;
 
 	/* Submit the DMA Rx transfer if required */
 	if (xfer->rx_buf) {
 		ret = dw_spi_dma_submit_rx(dws, xfer);
 		if (ret)
-			return ret;
+			goto err_clear_dmac;
 
 		/* rx must be started before tx due to spi instinct */
 		dma_async_issue_pending(dws->rxchan);
@@ -455,7 +451,12 @@ static int dw_spi_dma_transfer_all(struct dw_spi *dws,
 
 	dma_async_issue_pending(dws->txchan);
 
-	return dw_spi_dma_wait(dws, xfer);
+	ret = dw_spi_dma_wait(dws, xfer);
+
+err_clear_dmac:
+	dw_writel(dws, DW_SPI_DMACR, 0);
+
+	return ret;
 }
 
 static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
@@ -488,8 +489,6 @@ static void dw_spi_dma_stop(struct dw_spi *dws)
 		dmaengine_terminate_sync(dws->rxchan);
 		clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	}
-
-	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
 static const struct dw_spi_dma_ops dw_spi_dma_mfld_ops = {
