@@ -108,9 +108,8 @@ EXPORT_SYMBOL_GPL(dw_spi_set_cs);
 /* Return the max entries we can fill into tx fifo */
 static inline u32 tx_max(struct dw_spi *dws)
 {
-	u32 tx_left, tx_room, rxtx_gap;
+	u32 tx_room, rxtx_gap;
 
-	tx_left = (dws->tx_end - dws->tx) / dws->n_bytes;
 	tx_room = dws->fifo_len - dw_readl(dws, DW_SPI_TXFLR);
 
 	/*
@@ -121,18 +120,15 @@ static inline u32 tx_max(struct dw_spi *dws)
 	 * shift registers. So a control from sw point of
 	 * view is taken.
 	 */
-	rxtx_gap =  ((dws->rx_end - dws->rx) - (dws->tx_end - dws->tx))
-			/ dws->n_bytes;
+	rxtx_gap = dws->fifo_len - (dws->rx_len - dws->tx_len);
 
-	return min3(tx_left, tx_room, (u32) (dws->fifo_len - rxtx_gap));
+	return min3((u32)dws->tx_len, tx_room, rxtx_gap);
 }
 
 /* Return the max entries we should read out of rx fifo */
 static inline u32 rx_max(struct dw_spi *dws)
 {
-	u32 rx_left = (dws->rx_end - dws->rx) / dws->n_bytes;
-
-	return min_t(u32, rx_left, dw_readl(dws, DW_SPI_RXFLR));
+	return min_t(u32, dws->rx_len, dw_readl(dws, DW_SPI_RXFLR));
 }
 
 static void dw_writer(struct dw_spi *dws)
@@ -143,15 +139,16 @@ static void dw_writer(struct dw_spi *dws)
 	spin_lock(&dws->buf_lock);
 	max = tx_max(dws);
 	while (max--) {
-		/* Set the tx word if the transfer's original "tx" is not null */
-		if (dws->tx_end - dws->len) {
+		if (dws->tx) {
 			if (dws->n_bytes == 1)
 				txw = *(u8 *)(dws->tx);
 			else
 				txw = *(u16 *)(dws->tx);
+
+			dws->tx += dws->n_bytes;
 		}
 		dw_write_io_reg(dws, DW_SPI_DR, txw);
-		dws->tx += dws->n_bytes;
+		--dws->tx_len;
 	}
 	spin_unlock(&dws->buf_lock);
 }
@@ -165,14 +162,15 @@ static void dw_reader(struct dw_spi *dws)
 	max = rx_max(dws);
 	while (max--) {
 		rxw = dw_read_io_reg(dws, DW_SPI_DR);
-		/* Care rx only if the transfer's original "rx" is not null */
-		if (dws->rx_end - dws->len) {
+		if (dws->rx) {
 			if (dws->n_bytes == 1)
 				*(u8 *)(dws->rx) = rxw;
 			else
 				*(u16 *)(dws->rx) = rxw;
+
+			dws->rx += dws->n_bytes;
 		}
-		dws->rx += dws->n_bytes;
+		--dws->rx_len;
 	}
 	spin_unlock(&dws->buf_lock);
 }
@@ -198,7 +196,7 @@ static irqreturn_t interrupt_transfer(struct dw_spi *dws)
 	}
 
 	dw_reader(dws);
-	if (dws->rx_end == dws->rx) {
+	if (!dws->rx_len) {
 		spi_mask_intr(dws, 0xff);
 		spi_finalize_current_transfer(dws->master);
 		return IRQ_HANDLED;
@@ -327,13 +325,11 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 	spin_lock_irqsave(&dws->buf_lock, flags);
 	dws->n_bytes = DIV_ROUND_UP(transfer->bits_per_word, BITS_PER_BYTE);
 	dws->tx = (void *)transfer->tx_buf;
-	dws->tx_end = dws->tx + transfer->len;
+	dws->tx_len = transfer->len / dws->n_bytes;
 	dws->rx = transfer->rx_buf;
-	dws->rx_end = dws->rx + transfer->len;
-	dws->len = transfer->len;
-	spin_unlock_irqrestore(&dws->buf_lock, flags);
+	dws->rx_len = dws->tx_len;
 
-	/* Ensure dw->rx and dw->rx_end are visible */
+	/* Ensure the data above is visible for all CPUs */
 	smp_mb();
 
 	spi_enable_chip(dws, 0);
@@ -360,7 +356,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 			return ret;
 		}
 	} else {
-		txlevel = min_t(u16, dws->fifo_len / 2, dws->len / dws->n_bytes);
+		txlevel = min_t(u16, dws->fifo_len / 2, dws->tx_len);
 		dw_writel(dws, DW_SPI_TXFTLR, txlevel);
 
 		/* Set the interrupt mask */
