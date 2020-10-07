@@ -275,8 +275,8 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 	return cr0;
 }
 
-static void dw_spi_update_cr0(struct dw_spi *dws, struct spi_device *spi,
-			      struct spi_transfer *transfer)
+static void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
+				 struct spi_transfer *transfer)
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0 = chip->cr0;
@@ -292,6 +292,17 @@ static void dw_spi_update_cr0(struct dw_spi *dws, struct spi_device *spi,
 		cr0 |= chip->tmode << DWC_SSI_CTRLR0_TMOD_OFFSET;
 
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
+
+	/* Handle per transfer options for bpw and speed */
+	if (transfer->speed_hz != dws->current_freq) {
+		if (transfer->speed_hz != chip->speed_hz) {
+			/* clk_div doesn't support odd number */
+			chip->clk_div = (DIV_ROUND_UP(dws->max_freq, transfer->speed_hz) + 1) & 0xfffe;
+			chip->speed_hz = transfer->speed_hz;
+		}
+		dws->current_freq = transfer->speed_hz;
+		spi_set_clk(dws, chip->clk_div);
+	}
 }
 
 static int dw_spi_transfer_one(struct spi_controller *master,
@@ -319,20 +330,9 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	spi_enable_chip(dws, 0);
 
-	/* Handle per transfer options for bpw and speed */
-	if (transfer->speed_hz != dws->current_freq) {
-		if (transfer->speed_hz != chip->speed_hz) {
-			/* clk_div doesn't support odd number */
-			chip->clk_div = (DIV_ROUND_UP(dws->max_freq, transfer->speed_hz) + 1) & 0xfffe;
-			chip->speed_hz = transfer->speed_hz;
-		}
-		dws->current_freq = transfer->speed_hz;
-		spi_set_clk(dws, chip->clk_div);
-	}
+	dw_spi_update_config(dws, spi, transfer);
 
 	transfer->effective_speed_hz = dws->max_freq / chip->clk_div;
-
-	dw_spi_update_cr0(dws, spi, transfer);
 
 	/* Check if current transfer is a DMA transaction */
 	if (master->can_dma && master->can_dma(master, spi, transfer))
