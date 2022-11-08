@@ -194,7 +194,10 @@ static void add_man_viewer(const char *name)
 	while (*p)
 		p = &((*p)->next);
 	*p = zalloc(sizeof(**p) + len + 1);
-	strcpy((*p)->name, name);
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstringop-truncation"
+	strncpy((*p)->name, name, len);
+    #pragma GCC diagnostic pop
 }
 
 static int supported_man_viewer(const char *name, size_t len)

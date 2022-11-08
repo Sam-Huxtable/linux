@@ -8,6 +8,7 @@
 
 #include <asm/asm.h>
 #include <linux/const.h>
+#include <asm/andesv5/csr.h>
 
 /* Status register flags */
 #define SR_SIE		_AC(0x00000002, UL) /* Supervisor Interrupt Enable */
@@ -56,6 +57,7 @@
 #define IRQ_U_EXT		8
 #define IRQ_S_EXT		9
 #define IRQ_M_EXT		11
+#define IRQ_S_HPM		274
 
 #define EXC_INST_MISALIGNED	0
 #define EXC_INST_ACCESS		1
@@ -88,6 +90,11 @@
 #define CSR_CYCLEH		0xc80
 #define CSR_TIMEH		0xc81
 #define CSR_INSTRETH		0xc82
+
+/* IE/IP (Supervisor/Machine Interrupt Enable/Pending) flags */
+#define IE_SIE         (_AC(0x1, UL) << IRQ_S_SOFT)
+#define IE_TIE         (_AC(0x1, UL) << IRQ_S_TIMER)
+#define IE_EIE         (_AC(0x1, UL) << IRQ_S_EXT)
 
 #ifndef __ASSEMBLY__
 

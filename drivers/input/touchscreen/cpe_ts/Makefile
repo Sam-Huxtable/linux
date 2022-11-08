@@ -1,0 +1,1 @@
+obj-$(CONFIG_TOUCHSCREEN_CPE_TS_AE350) += cpe_ts_ae350.o

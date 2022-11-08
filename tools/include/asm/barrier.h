@@ -26,6 +26,8 @@
 #include "../../arch/xtensa/include/asm/barrier.h"
 #elif defined(__nds32__)
 #include "../../arch/nds32/include/asm/barrier.h"
+#elif defined(__riscv__)
+#include "../../arch/riscv/include/asm/barrier.h"
 #else
 #include <asm-generic/barrier.h>
 #endif

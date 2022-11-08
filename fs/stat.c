@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
-
+#include <asm/unistd.h>
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
@@ -19,7 +19,7 @@
 #include <linux/compat.h>
 
 #include <linux/uaccess.h>
-#include <asm/unistd.h>
+
 
 /**
  * generic_fillattr - Fill in the basic attributes from the inode struct

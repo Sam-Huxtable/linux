@@ -1096,8 +1096,13 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 	for_each_set_bit(rid, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs[i++];
 
+        if(perf_reg_name(rid) != NULL) {
+        #pragma GCC diagnostic push 
+        #pragma GCC diagnostic ignored "-Wformat-overflow"
 		printf(".... %-5s 0x%" PRIx64 "\n",
 		       perf_reg_name(rid), val);
+        #pragma GCC diagnostic pop
+        }
 	}
 }
 

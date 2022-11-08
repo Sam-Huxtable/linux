@@ -24,6 +24,13 @@
 #define _PAGE_DIRTY     (1 << 7)    /* Set by hardware on any write */
 #define _PAGE_SOFT      (1 << 8)    /* Reserved for software */
 
+#ifdef CONFIG_ANDES_QEMU_SUPPORT
+#define _PAGE_NONCACHEABLE      0
+#else
+extern phys_addr_t pa_msb;
+#define _PAGE_NONCACHEABLE      ((!!pa_msb) << 31)
+#endif
+
 #define _PAGE_SPECIAL   _PAGE_SOFT
 #define _PAGE_TABLE     _PAGE_PRESENT
 

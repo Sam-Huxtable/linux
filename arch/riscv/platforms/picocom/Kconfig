@@ -1,0 +1,16 @@
+menu "Picocom Customized Options"
+
+config SKIP_BSS_INIT
+	bool "skip bss memory init"
+	help
+      This is for simulation and emulation acceleration.
+	  Otherwise, say N.
+
+config PALLADIUM
+	bool "for PALLADIUM speedup"
+	help
+      This is for emulation acceleration. uart baudrate is highest.
+	  Otherwise, say N.
+
+    
+endmenu

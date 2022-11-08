@@ -84,12 +84,14 @@ _save_context:
 	csrr s3, CSR_STVAL
 	csrr s4, CSR_SCAUSE
 	csrr s5, CSR_SSCRATCH
+	csrr s6, CSR_SDCAUSE
 	REG_S s0, PT_SP(sp)
 	REG_S s1, PT_SSTATUS(sp)
 	REG_S s2, PT_SEPC(sp)
 	REG_S s3, PT_SBADADDR(sp)
 	REG_S s4, PT_SCAUSE(sp)
 	REG_S s5, PT_TP(sp)
+	REG_S s6, PT_SDCAUSE(sp)
 	.endm
 
 /*
@@ -220,7 +222,7 @@ handle_syscall:
 	REG_S s2, PT_SEPC(sp)
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_WORK
+	andi t0, t0, _TIF_WORK_SYSCALL_MASK
 	bnez t0, handle_syscall_trace_enter
 check_syscall_nr:
 	/* Check to make sure we don't jump to a bogus syscall number. */
@@ -240,7 +242,7 @@ ret_from_syscall:
 	REG_S a0, PT_A0(sp)
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_WORK
+	andi t0, t0, _TIF_WORK_SYSCALL_MASK
 	bnez t0, handle_syscall_trace_exit
 
 ret_from_exception:
@@ -255,6 +257,13 @@ resume_userspace:
 	andi s1, s0, _TIF_WORK_MASK
 	bnez s1, work_pending
 
+.global bypass_singlestep
+bypass_singlestep:
+	j 1f
+	/* Set trigger module for single step */
+	call do_singlestep
+
+1:
 	/* Save unwound kernel stack pointer in thread_info */
 	addi s0, sp, PT_SIZE_ON_STACK
 	REG_S s0, TASK_TI_KERNEL_SP(tp)

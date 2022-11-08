@@ -212,6 +212,7 @@ static inline void clear_highpage(struct page *page)
 {
 	void *kaddr = kmap_atomic(page);
 	clear_page(kaddr);
+	local_flush_tlb_all();
 	kunmap_atomic(kaddr);
 }
 

@@ -108,6 +108,7 @@ void asm_offsets(void)
 	OFFSET(PT_SSTATUS, pt_regs, sstatus);
 	OFFSET(PT_SBADADDR, pt_regs, sbadaddr);
 	OFFSET(PT_SCAUSE, pt_regs, scause);
+	OFFSET(PT_SDCAUSE, pt_regs, sdcause);
 
 	/*
 	 * THREAD_{F,X}* might be larger than a S-type offset can handle, but

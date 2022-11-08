@@ -235,6 +235,16 @@ config GPIO_FTGPIO010
 	  Support for common GPIOs from the Faraday FTGPIO010 IP core, found in
 	  Cortina systems Gemini platforms, Moxa ART and others.
 
+config GPIO_ATCGPIO100
+	tristate "Andes ATCGPIO100 GPIO support"
+	depends on RISCV && PLAT_AE350 && OF_GPIO
+	select GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN
+	select GPIO_GENERIC
+	help
+	  Support for common GPIOs from the Andestech ATCGPIO100 IP core, found in
+	  Andes RISC-V AE350 platform.
+
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
 	select GPIO_GENERIC

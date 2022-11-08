@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2019 Western Digital Corporation or its affiliates.
+ * Copyright (C) 2020 Andes Technology Corporation
  */
 
 #ifndef _ASM_RISCV_FIXMAP_H
@@ -10,6 +11,7 @@
 #include <linux/sizes.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/kmap_types.h>
 
 /*
  * Here we define all the compile-time 'special' virtual addresses.
@@ -27,7 +29,12 @@ enum fixed_addresses {
 	FIX_PTE,
 	FIX_PMD,
 	FIX_EARLYCON_MEM_BASE,
-	__end_of_fixed_addresses
+#ifdef CONFIG_HIGHMEM
+	FIX_KMAP_RESERVED,
+	FIX_KMAP_BEGIN,
+	FIX_KMAP_END = FIX_KMAP_BEGIN + (KM_TYPE_NR * NR_CPUS),
+#endif
+	__end_of_fixed_addresses,
 };
 
 #define FIXMAP_PAGE_IO		PAGE_KERNEL

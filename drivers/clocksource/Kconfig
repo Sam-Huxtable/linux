@@ -641,10 +641,11 @@ config CLKSRC_ST_LPC
 
 config ATCPIT100_TIMER
 	bool "ATCPIT100 timer driver"
-	depends on NDS32 || COMPILE_TEST
+	depends on GENERIC_SCHED_CLOCK && RISCV
+	select CLKSRC_MMIO
 	depends on HAS_IOMEM
+	select TIMER_PROBE
 	select TIMER_OF
-	default NDS32
 	help
 	  This option enables support for the Andestech ATCPIT100 timers.
 

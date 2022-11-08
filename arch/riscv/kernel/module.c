@@ -13,6 +13,7 @@
 #include <asm/pgtable.h>
 #include <asm/sections.h>
 
+
 static int apply_r_riscv_32_rela(struct module *me, u32 *location, Elf_Addr v)
 {
 	if (v != (u32)v) {
@@ -270,6 +271,26 @@ static int apply_r_riscv_sub32_rela(struct module *me, u32 *location,
 	return 0;
 }
 
+static int apply_r_riscv_10_pcrel_rela(struct module *me, u32 *location,
+				       Elf_Addr v)
+{
+	s64 offset = (void *)v - (void *)location;
+	u32 imm10 = (offset & 0x400) << (31 - 10);
+	u32 imm9_5 = (offset & 0x3e0) << (25 - 5);
+	u32 imm4_1 = (offset & 0x1e) << (8 - 1);
+
+	*(u32 *) location = (*(u32 *) location & 0x41fff0ff) |
+	    imm10 | imm9_5 | imm4_1;
+	return 0;
+}
+
+static int apply_r_riscv_ignore_rela(struct module *me, u32 *location,
+				     Elf_Addr v)
+{
+	return 0;
+}
+
+
 static int (*reloc_handlers_rela[]) (struct module *me, u32 *location,
 				Elf_Addr v) = {
 	[R_RISCV_32]			= apply_r_riscv_32_rela,
@@ -292,6 +313,18 @@ static int (*reloc_handlers_rela[]) (struct module *me, u32 *location,
 	[R_RISCV_ADD32]			= apply_r_riscv_add32_rela,
 	[R_RISCV_SUB32]			= apply_r_riscv_sub32_rela,
 };
+
+static int (*reloc_handlers_rela_nds(unsigned int type)) (struct module * me,
+							  u32 * location,
+							  Elf_Addr v)
+{
+	if (type == R_RISCV_10_PCREL)
+		return apply_r_riscv_10_pcrel_rela;
+	else if (type >= R_RISCV_ALIGN_BTB && type <= R_RISCV_RELAX_REGION_END)
+		return apply_r_riscv_ignore_rela;
+	else
+		return NULL;
+}
 
 int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		       unsigned int symindex, unsigned int relsec,
@@ -329,7 +362,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		if (type < ARRAY_SIZE(reloc_handlers_rela))
 			handler = reloc_handlers_rela[type];
 		else
-			handler = NULL;
+			handler = reloc_handlers_rela_nds(type);
 
 		if (!handler) {
 			pr_err("%s: Unknown relocation type %u\n",
@@ -393,12 +426,12 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 
 #if defined(CONFIG_MMU) && defined(CONFIG_64BIT)
 #define VMALLOC_MODULE_START \
-	 max(PFN_ALIGN((unsigned long)&_end - SZ_2G), VMALLOC_START)
+        max(PFN_ALIGN((unsigned long)&_end - SZ_2G), VMALLOC_START)
 void *module_alloc(unsigned long size)
 {
-	return __vmalloc_node_range(size, 1, VMALLOC_MODULE_START,
-				    VMALLOC_END, GFP_KERNEL,
-				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
-				    __builtin_return_address(0));
+       return __vmalloc_node_range(size, 1, VMALLOC_MODULE_START,
+                                   VMALLOC_END, GFP_KERNEL,
+                                   PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+                                   __builtin_return_address(0));
 }
 #endif

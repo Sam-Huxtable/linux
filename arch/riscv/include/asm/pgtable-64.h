@@ -7,6 +7,7 @@
 #define _ASM_RISCV_PGTABLE_64_H
 
 #include <linux/const.h>
+#include <asm/andes.h>
 
 #define PGDIR_SHIFT     30
 /* Size of region mapped by a page global directory */
@@ -46,6 +47,7 @@ static inline int pud_bad(pud_t pud)
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {
 	*pudp = pud;
+	andes_local_flush_tlb_all();
 }
 
 static inline void pud_clear(pud_t *pudp)
@@ -56,6 +58,11 @@ static inline void pud_clear(pud_t *pudp)
 static inline unsigned long pud_page_vaddr(pud_t pud)
 {
 	return (unsigned long)pfn_to_virt(pud_val(pud) >> _PAGE_PFN_SHIFT);
+}
+
+static inline struct page *pud_page(pud_t pud)
+{
+	return pfn_to_page(pud_val(pud) >> _PAGE_PFN_SHIFT);
 }
 
 #define pmd_index(addr) (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))

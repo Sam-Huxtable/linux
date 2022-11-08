@@ -1,0 +1,122 @@
+[
+	{
+        "EventCode": "0xff00",
+        "EventName": "total_cn_access",
+        "BriefDescription": "Core N total access count"
+        },
+	{
+        "EventCode": "0xff03",
+        "EventName": "cn_trans_snoop",
+        "BriefDescription": "Core N transmit snoop data count"
+        },
+        {
+        "EventCode": "0xff04",
+        "EventName": "cn_recv_snoop",
+        "BriefDescription": "Core N receive snoop data count"
+        },
+	{
+        "EventCode": "0xff40",
+        "EventName": "total_m4_access",
+        "BriefDescription": "Master 4 total access count"
+        },
+        {
+        "EventCode": "0xff41",
+        "EventName": "l2c_m4_access",
+        "BriefDescription": "Master 4 L2 cache access count"
+        },
+        {
+        "EventCode": "0xff42",
+        "EventName": "l2c_m4_miss",
+        "BriefDescription": "Master 4 L2 cache miss count"
+        },
+        {
+        "EventCode": "0xff44",
+        "EventName": "m4_recv_snoop",
+        "BriefDescription": "Master 4 receive snoop data count"
+        },
+        {
+        "EventCode": "0xff50",
+        "EventName": "sys_bus_access",
+        "BriefDescription": "System bus access count"
+        },
+        {
+        "EventCode": "0xff70",
+        "EventName": "l2_way_0_eviction_count",
+        "BriefDescription": "L2 way 0 eviction count"
+        },
+        {
+        "EventCode": "0xff71",
+        "EventName": "l2_way_1_eviction_count",
+        "BriefDescription": "L2 way 1 eviction count"
+        },
+        {
+        "EventCode": "0xff72",
+        "EventName": "l2_way_2_eviction_count",
+        "BriefDescription": "L2 way 2 eviction count"
+        },
+        {
+        "EventCode": "0xff73",
+        "EventName": "l2_way_3_eviction_count",
+        "BriefDescription": "L2 way 3 eviction count"
+        },
+	{
+        "EventCode": "0xff74",
+        "EventName": "l2_way_4_eviction_count",
+        "BriefDescription": "L2 way 4 eviction count"
+        },
+        {
+        "EventCode": "0xff75",
+        "EventName": "l2_way_5_eviction_count",
+        "BriefDescription": "L2 way 5 eviction count"
+        },
+        {
+        "EventCode": "0xff76",
+        "EventName": "l2_way_6_eviction_count",
+        "BriefDescription": "L2 way 6 eviction count"
+        },
+        {
+        "EventCode": "0xff77",
+        "EventName": "l2_way_7_eviction_count",
+        "BriefDescription": "L2 way 7 eviction count"
+        },
+        {
+        "EventCode": "0xff78",
+        "EventName": "l2_way_8_eviction_count",
+        "BriefDescription": "L2 way 8 eviction count"
+        },
+        {
+        "EventCode": "0xff79",
+        "EventName": "l2_way_9_eviction_count",
+        "BriefDescription": "L2 way 9 eviction count"
+        },
+        {
+        "EventCode": "0xff7a",
+        "EventName": "l2_way_10_eviction_count",
+        "BriefDescription": "L2 way 10 eviction count"
+        },
+        {
+        "EventCode": "0xff7b",
+        "EventName": "l2_way_11_eviction_count",
+        "BriefDescription": "L2 way 11 eviction count"
+        },
+        {
+        "EventCode": "0xff7c",
+        "EventName": "l2_way_12_eviction_count",
+        "BriefDescription": "L2 way 12 eviction count"
+        },
+        {
+        "EventCode": "0xff7d",
+        "EventName": "l2_way_13_eviction_count",
+        "BriefDescription": "L2 way 13 eviction count"
+        },
+	{
+        "EventCode": "0xff7e",
+        "EventName": "l2_way_14_eviction_count",
+        "BriefDescription": "L2 way 14 eviction count"
+        },
+        {
+        "EventCode": "0xff7f",
+        "EventName": "l2_way_15_eviction_count",
+        "BriefDescription": "L2 way 15 eviction count"
+        },
+]

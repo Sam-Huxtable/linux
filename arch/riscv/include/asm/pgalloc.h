@@ -9,7 +9,7 @@
 
 #include <linux/mm.h>
 #include <asm/tlb.h>
-
+#include <asm/andes.h>
 #include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
 
 static inline void pmd_populate_kernel(struct mm_struct *mm,
@@ -18,6 +18,7 @@ static inline void pmd_populate_kernel(struct mm_struct *mm,
 	unsigned long pfn = virt_to_pfn(pte);
 
 	set_pmd(pmd, __pmd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
+	andes_local_flush_tlb_all();
 }
 
 static inline void pmd_populate(struct mm_struct *mm,
@@ -26,6 +27,7 @@ static inline void pmd_populate(struct mm_struct *mm,
 	unsigned long pfn = virt_to_pfn(page_address(pte));
 
 	set_pmd(pmd, __pmd((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
+	andes_local_flush_tlb_all();
 }
 
 #ifndef __PAGETABLE_PMD_FOLDED
@@ -34,6 +36,7 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 	unsigned long pfn = virt_to_pfn(pmd);
 
 	set_pud(pud, __pud((pfn << _PAGE_PFN_SHIFT) | _PAGE_TABLE));
+	andes_local_flush_tlb_all();
 }
 #endif /* __PAGETABLE_PMD_FOLDED */
 
@@ -50,6 +53,8 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 		memcpy(pgd + USER_PTRS_PER_PGD,
 			init_mm.pgd + USER_PTRS_PER_PGD,
 			(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
+
+		andes_local_flush_tlb_all();
 	}
 	return pgd;
 }

@@ -147,7 +147,7 @@ int is_valid_bugaddr(unsigned long pc)
 }
 #endif /* CONFIG_GENERIC_BUG */
 
-void __init trap_init(void)
+void trap_init(void)
 {
 	/*
 	 * Set sup0 scratch register to 0, indicating to exception vector
@@ -156,6 +156,6 @@ void __init trap_init(void)
 	csr_write(CSR_SSCRATCH, 0);
 	/* Set the exception vector address */
 	csr_write(CSR_STVEC, &handle_exception);
-	/* Enable all interrupts */
-	csr_write(CSR_SIE, -1);
+	/* Enable all interrupts but timer interrupt*/
+	csr_set(CSR_SIE, SIE_SSIE);
 }

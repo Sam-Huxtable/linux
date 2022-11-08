@@ -1,0 +1,28 @@
+choice
+	prompt "platform type"
+	default PLAT_AE350
+
+config PLAT_AE350
+	bool "ae350 platform"
+
+endchoice
+
+if PLAT_AE350
+source "arch/riscv/platforms/ae350/Kconfig"
+endif
+
+source "arch/riscv/platforms/picocom/Kconfig"
+
+menu "Common Platform Options"
+
+config PLATFORM_AHBDMA
+	prompt "platform AHB DMA support"
+	bool
+	default y
+
+config ATCSMU
+    bool "ATCSMU Support"
+    depends on RISCV && PLAT_AE350
+    help
+     Say N here if you want to disable SMU support
+endmenu

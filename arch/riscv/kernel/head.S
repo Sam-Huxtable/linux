@@ -13,7 +13,7 @@
 #include <asm/csr.h>
 #include <asm/image.h>
 
-__INIT
+__HEAD
 ENTRY(_start)
 	/*
 	 * Image header expected by Linux boot-loaders. The image header data
@@ -49,68 +49,8 @@ ENTRY(_start)
 	.ascii RISCV_IMAGE_MAGIC2
 	.word 0
 
-.global _start_kernel
-_start_kernel:
-	/* Mask all interrupts */
-	csrw CSR_SIE, zero
-	csrw CSR_SIP, zero
-
-	/* Load the global pointer */
-.option push
-.option norelax
-	la gp, __global_pointer$
-.option pop
-
-	/*
-	 * Disable FPU to detect illegal usage of
-	 * floating point in kernel space
-	 */
-	li t0, SR_FS
-	csrc CSR_SSTATUS, t0
-
-#ifdef CONFIG_SMP
-	li t0, CONFIG_NR_CPUS
-	bgeu a0, t0, .Lsecondary_park
-#endif
-
-	/* Pick one hart to run the main boot sequence */
-	la a3, hart_lottery
-	li a2, 1
-	amoadd.w a3, a2, (a3)
-	bnez a3, .Lsecondary_start
-
-	/* Clear BSS for flat non-ELF images */
-	la a3, __bss_start
-	la a4, __bss_stop
-	ble a4, a3, clear_bss_done
-clear_bss:
-	REG_S zero, (a3)
-	add a3, a3, RISCV_SZPTR
-	blt a3, a4, clear_bss
-clear_bss_done:
-
-	/* Save hart ID and DTB physical address */
-	mv s0, a0
-	mv s1, a1
-	la a2, boot_cpu_hartid
-	REG_S a0, (a2)
-
-	/* Initialize page tables and relocate to virtual addresses */
-	la sp, init_thread_union + THREAD_SIZE
-	mv a0, s1
-	call setup_vm
-	la a0, early_pg_dir
-	call relocate
-
-	/* Restore C environment */
-	la tp, init_task
-	sw zero, TASK_TI_CPU(tp)
-	la sp, init_thread_union + THREAD_SIZE
-
-	/* Start the kernel */
-	call parse_dtb
-	tail start_kernel
-
+.align 2
+#ifdef CONFIG_MMU
 relocate:
 	/* Relocate return address */
 	li a1, PAGE_OFFSET
@@ -161,6 +101,144 @@ relocate:
 	sfence.vma
 
 	ret
+#endif /* CONFIG_MMU */
+#ifdef CONFIG_SMP
+	.global secondary_start_sbi
+secondary_start_sbi:
+	/* Mask all interrupts */
+	csrw sie, zero
+	csrw sip, zero
+
+	/* Load the global pointer */
+	.option push
+	.option norelax
+		la gp, __global_pointer$
+	.option pop
+
+	/*
+	 * Disable FPU to detect illegal usage of
+	 * floating point in kernel space
+	 */
+	li t0, SR_FS
+	csrc sstatus, t0
+
+	/* Set trap vector to spin forever to help debug */
+	la a3, .Lsecondary_park
+	csrw CSR_STVEC, a3
+
+	slli a3, a0, LGREG
+	la a4, __cpu_up_stack_pointer
+	la a5, __cpu_up_task_pointer
+	add a4, a3, a4
+	add a5, a3, a5
+	REG_L sp, (a4)
+	REG_L tp, (a5)
+
+	.global secondary_start_common
+secondary_start_common:
+
+#ifdef CONFIG_MMU
+	/* Enable virtual memory and relocate to virtual address */
+	la a0, swapper_pg_dir
+	call relocate
+#endif
+	tail smp_callin
+#endif /* CONFIG_SMP */
+
+.Lsecondary_park:
+	/* We lack SMP support or have too many harts, so park this hart */
+	wfi
+	j .Lsecondary_park
+
+END(_start)
+
+	__INIT
+ENTRY(_start_kernel)
+	/* Mask all interrupts */
+	csrw sie, zero
+	csrw sip, zero
+
+	/* Load the global pointer */
+.option push
+.option norelax
+	la gp, __global_pointer$
+.option pop
+
+	/*
+	 * Disable FPU to detect illegal usage of
+	 * floating point in kernel space
+	 */
+	li t0, SR_FS
+	csrc sstatus, t0
+
+    li t0, 0x7d
+    csrw scounteren, t0
+
+    li t0, (18 << 4 | 1)
+    csrw shpmevent3, t0
+
+    li t0, (20 << 4 | 1)
+    csrw shpmevent4, t0
+
+    li t0, (21 << 4 | 1)
+    csrw shpmevent5, t0
+
+    li t0, (22 << 4 | 1)
+    csrw shpmevent6, t0
+
+#ifdef CONFIG_SMP
+	li t0, CONFIG_NR_CPUS
+	bgeu a0, t0, .Lsecondary_park
+#endif
+
+	/* Pick one hart to run the main boot sequence */
+	la a3, hart_lottery
+	li a2, 1
+	amoadd.w a3, a2, (a3)
+	bnez a3, .Lsecondary_start
+
+	/* Clear BSS for flat non-ELF images */
+	la a3, __bss_start
+	la a4, __bss_stop
+	ble a4, a3, clear_bss_done
+#ifndef CONFIG_SKIP_BSS_INIT
+clear_bss:
+	REG_S zero, (a3)
+	add a3, a3, RISCV_SZPTR
+	blt a3, a4, clear_bss
+#endif
+clear_bss_done:
+
+	/* Save hart ID and DTB physical address */
+	mv s0, a0
+	mv s1, a1
+	la a2, boot_cpu_hartid
+	REG_S a0, (a2)
+
+	/* Initialize page tables and relocate to virtual addresses */
+	la t0, init_thread_union + THREAD_SIZE
+	mv sp, t0
+	call setup_maxpa
+
+	/* Pass DTB addr to setup_vm */
+	mv a0, s1
+	call setup_vm
+	la a0, early_pg_dir
+	call relocate
+
+	/* Restore C environment */
+	la t0, init_task
+	mv tp, t0
+	sw zero, TASK_TI_CPU(tp)
+	la t0, init_thread_union + THREAD_SIZE
+	mv sp, t0
+
+#ifdef CONFIG_KASAN
+	call kasan_early_init
+#endif
+	/* Start the kernel */
+	call parse_dtb
+	tail start_kernel
 
 .Lsecondary_start:
 #ifdef CONFIG_SMP
@@ -186,19 +264,89 @@ relocate:
 	beqz tp, .Lwait_for_cpu_up
 	fence
 
-	/* Enable virtual memory and relocate to virtual address */
-	la a0, swapper_pg_dir
-	call relocate
-
-	tail smp_callin
+	tail secondary_start_common
 #endif
 
-.align 2
-.Lsecondary_park:
-	/* We lack SMP support or have too many harts, so park this hart */
-	wfi
-	j .Lsecondary_park
-END(_start)
+END(_start_kernel)
+
+#ifdef CONFIG_RISCV_M_MODE
+ENTRY(reset_regs)
+	li	sp, 0
+	li	gp, 0
+	li	tp, 0
+	li	t0, 0
+	li	t1, 0
+	li	t2, 0
+	li	s0, 0
+	li	s1, 0
+	li	a2, 0
+	li	a3, 0
+	li	a4, 0
+	li	a5, 0
+	li	a6, 0
+	li	a7, 0
+	li	s2, 0
+	li	s3, 0
+	li	s4, 0
+	li	s5, 0
+	li	s6, 0
+	li	s7, 0
+	li	s8, 0
+	li	s9, 0
+	li	s10, 0
+	li	s11, 0
+	li	t3, 0
+	li	t4, 0
+	li	t5, 0
+	li	t6, 0
+	csrw	CSR_SCRATCH, 0
+
+#ifdef CONFIG_FPU
+	csrr	t0, CSR_MISA
+	andi	t0, t0, (COMPAT_HWCAP_ISA_F | COMPAT_HWCAP_ISA_D)
+	beqz	t0, .Lreset_regs_done
+
+	li	t1, SR_FS
+	csrs	CSR_STATUS, t1
+	fmv.s.x	f0, zero
+	fmv.s.x	f1, zero
+	fmv.s.x	f2, zero
+	fmv.s.x	f3, zero
+	fmv.s.x	f4, zero
+	fmv.s.x	f5, zero
+	fmv.s.x	f6, zero
+	fmv.s.x	f7, zero
+	fmv.s.x	f8, zero
+	fmv.s.x	f9, zero
+	fmv.s.x	f10, zero
+	fmv.s.x	f11, zero
+	fmv.s.x	f12, zero
+	fmv.s.x	f13, zero
+	fmv.s.x	f14, zero
+	fmv.s.x	f15, zero
+	fmv.s.x	f16, zero
+	fmv.s.x	f17, zero
+	fmv.s.x	f18, zero
+	fmv.s.x	f19, zero
+	fmv.s.x	f20, zero
+	fmv.s.x	f21, zero
+	fmv.s.x	f22, zero
+	fmv.s.x	f23, zero
+	fmv.s.x	f24, zero
+	fmv.s.x	f25, zero
+	fmv.s.x	f26, zero
+	fmv.s.x	f27, zero
+	fmv.s.x	f28, zero
+	fmv.s.x	f29, zero
+	fmv.s.x	f30, zero
+	fmv.s.x	f31, zero
+	csrw	fcsr, 0
+	/* note that the caller must clear SR_FS */
+#endif /* CONFIG_FPU */
+.Lreset_regs_done:
+	ret
+END(reset_regs)
+#endif /* CONFIG_RISCV_M_MODE */
 
 __PAGE_ALIGNED_BSS
 	/* Empty zero page */

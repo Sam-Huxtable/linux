@@ -36,7 +36,9 @@ static void __init zone_sizes_init(void)
 			(unsigned long) PFN_PHYS(max_low_pfn)));
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-
+#ifdef CONFIG_HIGHMEM
+	max_zone_pfns[ZONE_HIGHMEM] = max_pfn;
+#endif
 	free_area_init_nodes(max_zone_pfns);
 }
 
@@ -44,6 +46,57 @@ void setup_zero_page(void)
 {
 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 }
+
+#ifdef CONFIG_HIGHMEM
+static inline void __init free_highmem(void)
+{
+    unsigned long pfn;
+    for (pfn = PFN_UP(__pa(high_memory)); pfn < max_pfn; pfn++) {
+        phys_addr_t paddr = (phys_addr_t) pfn << PAGE_SHIFT;
+        if (!memblock_is_reserved(paddr))
+            free_highmem_page(pfn_to_page(pfn));
+    }
+}
+#else
+static inline void __init free_highmem(void) { }
+#endif
+
+#ifdef CONFIG_DEBUG_VM
+static inline void print_mlk(char *name, unsigned long b, unsigned long t)
+{
+	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld kB)\n", name, b, t,
+		  (((t) - (b)) >> 10));
+}
+
+static inline void print_mlm(char *name, unsigned long b, unsigned long t)
+{
+	pr_notice("%12s : 0x%08lx - 0x%08lx   (%4ld MB)\n", name, b, t,
+		  (((t) - (b)) >> 20));
+}
+
+static void print_vm_layout(void)
+{
+	pr_notice("Virtual kernel memory layout:\n");
+#ifdef CONFIG_HIGHMEM
+	print_mlm("lowmem", (unsigned long)PAGE_OFFSET,
+		  (unsigned long)high_memory);
+	print_mlm("pkmap", (unsigned long)PKMAP_BASE,
+		  (unsigned long)FIXADDR_START);
+#endif
+	print_mlk("fixmap", (unsigned long)FIXADDR_START,
+		  (unsigned long)FIXADDR_TOP);
+	print_mlm("vmemmap", (unsigned long)VMEMMAP_START,
+		  (unsigned long)VMEMMAP_END);
+	print_mlm("vmalloc", (unsigned long)VMALLOC_START,
+		  (unsigned long)VMALLOC_END);
+#ifndef CONFIG_HIGHMEM
+	print_mlm("lowmem", (unsigned long)PAGE_OFFSET,
+		  (unsigned long)high_memory);
+#endif
+}
+#else
+static void print_vm_layout(void) { }
+#endif /* CONFIG_DEBUG_VM */
 
 void __init mem_init(void)
 {
@@ -53,8 +106,10 @@ void __init mem_init(void)
 
 	high_memory = (void *)(__va(PFN_PHYS(max_low_pfn)));
 	memblock_free_all();
+	free_highmem();
 
 	mem_init_print_info(NULL);
+	print_vm_layout();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -99,7 +154,17 @@ void __init setup_bootmem(void)
 		phys_addr_t end = reg->base + reg->size;
 
 		if (reg->base <= vmlinux_start && vmlinux_end <= end) {
+#ifdef CONFIG_HIGHMEM
+			/*
+			 * In RV32 platform, physical RAM might
+			 * large than 1GB, so we just set reg->size
+			 * as mem_size.
+			 */
+			mem_size = reg->size;
+#else
 			mem_size = min(reg->size, (phys_addr_t)-PAGE_OFFSET);
+#endif
+
 
 			/*
 			 * Remove memblock from the end of usable area to the
@@ -115,10 +180,16 @@ void __init setup_bootmem(void)
 	/* Reserve from the start of the kernel to the end of the kernel */
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
+#ifdef CONFIG_HIGHMEM
+	set_max_mapnr(PFN_DOWN(mem_size));
+	max_low_pfn = (PFN_DOWN(__pa(LOWMEM_END)));
+	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	memblock_set_current_limit(__pa(LOWMEM_END));
+#else
 	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
 	max_low_pfn = max_pfn;
 	set_max_mapnr(max_low_pfn);
-
+#endif
 #ifdef CONFIG_BLK_DEV_INITRD
 	setup_initrd();
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -423,8 +494,16 @@ static void __init setup_vm_final(void)
 	/* Map all memory banks */
 	for_each_memblock(memory, reg) {
 		start = reg->base;
+#ifdef CONFIG_HIGHMEM
+		/*
+		 * If enable HIGHMEM, we only setup pagtable
+		 * to the end of lowmemory
+		 */
+		BUG_ON((LOWMEM_SIZE % PGDIR_SIZE) != 0);
+		end = start + LOWMEM_SIZE;
+#else
 		end = start + reg->size;
-
+#endif
 		if (start >= end)
 			break;
 		if (memblock_is_nomap(reg))
@@ -450,6 +529,42 @@ static void __init setup_vm_final(void)
 	local_flush_tlb_all();
 }
 
+#ifdef CONFIG_HIGHMEM
+static void __init pkmap_init(void)
+{
+    unsigned long vaddr;
+    unsigned long pfn;
+    pgd_t *pgd;
+    p4d_t *p4d;
+    pud_t *pud;
+    pmd_t *pmd;
+    pte_t *pkmap_p;
+
+    /*
+     * Permanent kmaps:
+     */
+    vaddr = PKMAP_BASE;
+
+    pgd = swapper_pg_dir + pgd_index(vaddr);
+    p4d = p4d_offset(pgd, vaddr);
+    pud = pud_offset(p4d, vaddr);
+    pmd = pmd_offset(pud, vaddr);
+    pkmap_p = (pte_t *) __va(memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE));
+    if (!pkmap_p)
+        panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+              __func__, PAGE_SIZE, PAGE_SIZE);
+    memset(pkmap_p, 0, PAGE_SIZE);
+    pfn = PFN_DOWN(__pa(pkmap_p));
+    set_pmd(pmd, __pmd((pfn  << _PAGE_PFN_SHIFT) |
+                        pgprot_val(__pgprot(_PAGE_TABLE))));
+    /* Adjust pkmap page table base */
+    pkmap_page_table = pkmap_p + pte_index(vaddr);
+	flush_cache_kmaps();
+}
+#else
+static void __init pkmap_init(void){ }
+#endif
+
 void __init paging_init(void)
 {
 	setup_vm_final();
@@ -457,6 +572,7 @@ void __init paging_init(void)
 	sparse_init();
 	setup_zero_page();
 	zone_sizes_init();
+	pkmap_init();
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP

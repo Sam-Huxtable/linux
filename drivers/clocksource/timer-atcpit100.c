@@ -6,14 +6,17 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/interrupt.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
 #include <linux/sched.h>
 #include <linux/sched_clock.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -218,7 +221,7 @@ static void fill_vdso_need_info(struct device_node *node)
 }
 #endif
 
-static int __init atcpit100_timer_init(struct device_node *node)
+static int atcpit100_timer_init(struct device_node *node)
 {
 	int ret;
 	u32 val;

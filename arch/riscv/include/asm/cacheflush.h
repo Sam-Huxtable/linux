@@ -46,17 +46,14 @@ static inline void flush_dcache_mmap_unlock(struct address_space *mapping)
 {
 }
 
-static inline void flush_icache_page(struct vm_area_struct *vma,
-				     struct page *page)
-{
-}
-
 static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 {
+	local_flush_tlb_all();
 }
 
 static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
 {
+	local_flush_tlb_all();
 }
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
@@ -80,13 +77,6 @@ static inline void flush_dcache_page(struct page *page)
 		clear_bit(PG_dcache_clean, &page->flags);
 }
 
-/*
- * RISC-V doesn't have an instruction to flush parts of the instruction cache,
- * so instead we just flush the whole thing.
- */
-#define flush_icache_range(start, end) flush_icache_all()
-#define flush_icache_user_range(vma, pg, addr, len) flush_icache_all()
-
 #ifndef CONFIG_SMP
 
 #define flush_icache_all() local_flush_icache_all()
@@ -98,6 +88,19 @@ void flush_icache_all(void);
 void flush_icache_mm(struct mm_struct *mm, bool local);
 
 #endif /* CONFIG_SMP */
+
+/*
+ * RISC-V doesn't have an instruction to flush parts of the instruction cache,
+ * so instead we just flush the whole thing.
+ */
+#define flush_icache_range(start, end) flush_icache_all()
+#define flush_icache_user_range(vma, pg, addr, len) flush_icache_all()
+
+static inline void flush_icache_page(struct vm_area_struct *vma,
+				     struct page *page)
+{
+  flush_icache_all();
+}
 
 /*
  * Bits in sys_riscv_flush_icache()'s flags argument.

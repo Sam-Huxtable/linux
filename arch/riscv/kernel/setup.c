@@ -16,13 +16,16 @@
 #include <linux/of_platform.h>
 #include <linux/sched/task.h>
 #include <linux/swiotlb.h>
+#include <linux/smp.h>
 
+#include <asm/cpu_ops.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
-#include <asm/smp.h>
+#include <asm/sbi.h>
 #include <asm/tlbflush.h>
 #include <asm/thread_info.h>
+#include <asm/kasan.h>
 
 #include "head.h"
 
@@ -37,9 +40,18 @@ struct screen_info screen_info = {
 };
 #endif
 
+phys_addr_t pa_msb;
+asmlinkage void __init setup_maxpa(void)
+{
+    csr_write(satp, SATP_PPN);
+    pa_msb = (csr_read(satp) + 1) >>1;
+}
+
 /* The lucky hart to first increment this variable will boot the other cores */
 atomic_t hart_lottery;
+static DEFINE_PER_CPU(struct cpu, cpu_devices);
 unsigned long boot_cpu_hartid;
+static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
 void __init parse_dtb(void)
 {
@@ -53,6 +65,7 @@ void __init parse_dtb(void)
 #endif
 }
 
+bool andestar45;
 void __init setup_arch(char **cmdline_p)
 {
 	init_mm.start_code = (unsigned long) _stext;
@@ -61,6 +74,8 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk        = (unsigned long) _end;
 
 	*cmdline_p = boot_command_line;
+	long archid = sbi_get_marchid();
+	andestar45 = ((archid & 0xF0) >> 4 == 4 && (archid & 0xF) == 5)?true:false;
 
 	parse_early_param();
 
@@ -70,6 +85,20 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(1);
+#endif
+
+#ifdef CONFIG_KASAN
+	kasan_init();
+#endif
+
+#if IS_ENABLED(CONFIG_RISCV_SBI)
+	sbi_init();
+#endif
+
+#ifdef CONFIG_PMA
+	if (sbi_probe_pma()) {
+		pa_msb = 0;
+	}
 #endif
 
 #ifdef CONFIG_SMP
@@ -82,3 +111,18 @@ void __init setup_arch(char **cmdline_p)
 
 	riscv_fill_hwcap();
 }
+
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct cpu *cpu = &per_cpu(cpu_devices, i);
+
+		cpu->hotpluggable = cpu_has_hotplug(i);
+		register_cpu(cpu, i);
+	}
+
+	return 0;
+}
+subsys_initcall(topology_init);

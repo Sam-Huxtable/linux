@@ -10,7 +10,15 @@
 #include <linux/interrupt.h>
 #include <linux/linkage.h>
 
-#define NR_IRQS         0
+#define NR_IRQS         72
+
+/*
+ * Use this value to indicate lack of interrupt
+ * capability
+ */
+#ifndef NO_IRQ
+#define NO_IRQ  ((unsigned int)(-1))
+#endif
 
 void riscv_timer_interrupt(void);
 void riscv_software_interrupt(void);

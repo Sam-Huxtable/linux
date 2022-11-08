@@ -22,7 +22,6 @@ config RISCV
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_CPU_DEVICES
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
@@ -59,8 +58,13 @@ config RISCV
 	select ARCH_HAS_GIGANTIC_PAGE
 	select ARCH_WANT_HUGE_PMD_SHARE if 64BIT
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
-	select HAVE_ARCH_MMAP_RND_BITS
+	select HAVE_ARCH_MMAP_RND_BITS if MMU
 	select HAVE_COPY_THREAD_TLS
+	select ARCH_HAS_SETUP_DMA_OPS
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_GCOV_PROFILE_ALL
+	select HAVE_ARCH_KASAN if MMU && 64BIT
 
 config ARCH_MMAP_RND_BITS_MIN
 	default 18 if 64BIT
@@ -71,9 +75,23 @@ config ARCH_MMAP_RND_BITS_MIN
 config ARCH_MMAP_RND_BITS_MAX
 	default 24 if 64BIT # SV39 based
 	default 17
+config CPU_FREQ
+	def_bool y
+
+config CPU_FREQ_GOV_POWERSAVE
+	def_bool y
+	depends on CPU_FREQ
+
+config CPU_FREQ_DEFAULT_GOV_POWERSAVE
+	def_bool y
+	depends on CPU_FREQ
 
 config MMU
 	def_bool y
+
+config RISCV_SBI
+	bool
+	default y
 
 config ZONE_DMA32
 	bool
@@ -119,6 +137,14 @@ config STACKTRACE_SUPPORT
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
+config HOTPLUG_CPU
+   def_bool y
+   depends on SMP
+
+config GENERIC_IRQ_MIGRATION
+   def_bool y
+   depends on SMP
+
 config GENERIC_BUG
 	def_bool y
 	depends on BUG
@@ -148,6 +174,7 @@ source "arch/riscv/Kconfig.socs"
 
 menu "Platform type"
 
+source "arch/riscv/platforms/Kconfig"
 choice
 	prompt "Base ISA"
 	default ARCH_RV64I
@@ -172,7 +199,6 @@ config ARCH_RV64I
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
-	select SWIOTLB
 
 endchoice
 
@@ -227,6 +253,17 @@ config NR_CPUS
 	depends on SMP
 	default "8"
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	select GENERIC_IRQ_MIGRATION
+	help
+
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
+	  Say N if you want to disable CPU hotplug.
+
 choice
 	prompt "CPU Tuning"
 	default TUNE_GENERIC
@@ -246,18 +283,32 @@ config RISCV_ISA_C
 
 	   If you don't know what to do here, say Y.
 
-menu "supported PMU type"
-	depends on PERF_EVENTS
-
-config RISCV_BASE_PMU
-	bool "Base Performance Monitoring Unit"
+config RISCV_ISA_A
 	def_bool y
+
+choice
+	prompt "supported HPM type"
+	depends on PERF_EVENTS
+	default RISCV_BASE_HPM
+
+config RISCV_BASE_HPM
+	bool "Base Hardware Performance Monitor"
 	help
-	  A base PMU that serves as a reference implementation and has limited
+	  A base HPM that serves as a reference implementation and has limited
 	  feature of perf.  It can run on any RISC-V machines so serves as the
 	  fallback, but this option can also be disable to reduce kernel size.
 
-endmenu
+config ANDES_HPM
+	bool "ANDES Hardware Performance Monitor"
+	help
+	  Andes HPM provide extension registers for Performance counter.
+endchoice
+
+config DSP
+       bool "DSP support"
+       default y
+       help
+         Say N here if you want to disable DSP support.
 
 config FPU
 	bool "FPU support"
@@ -268,12 +319,58 @@ config FPU
 
 	  If you don't know what to do here, say Y.
 
+config HIGHMEM
+    bool "High Memory Support"
+    depends on 32BIT
+    default n
+    help
+      The address space of RV32 processors is only 4 Gigabytes large
+      and it has to accommodate user address space, kernel address
+      space as well as some memory mapped IO. That means that, if you
+      have a large amount of physical memory and/or IO, not all of the
+      memory can be "permanently mapped" by the kernel. The physical
+      memory that is not permanently mapped is called "high memory".
+
+      Depending on the selected kernel/user memory split, minimum
+      vmalloc space and actual amount of RAM, you may not need this
+      option which should result in a slightly faster kernel.
+
+      If unsure, say n.
+
+config PMA
+	bool "PMA support"
+	default y
+	help
+	  Since 27 series we have PMA support to control non-cacheable
+	  region.  It is transparent to user.  If you want to reduce
+	  marginal code size, say N.
+
 endmenu
 
 menu "Kernel features"
 
 source "kernel/Kconfig.hz"
 
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+config RISCV_SBI_V01
+	bool "SBI v0.1 support"
+	default y
+	depends on RISCV_SBI
+	help
+	  This config allows kernel to use SBI v0.1 APIs. This will be
+	  deprecated in future once legacy M-mode software are no longer in use.
 endmenu
 
 menu "Boot options"
@@ -324,7 +421,8 @@ endchoice
 endmenu
 
 menu "Power management options"
-
+config ARCH_SUSPEND_POSSIBLE
+   def_bool y
 source "kernel/power/Kconfig"
 
 endmenu

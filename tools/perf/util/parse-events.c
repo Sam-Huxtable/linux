@@ -37,6 +37,9 @@
 #include "util/evsel_config.h"
 #include "util/event.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+
 #define MAX_NAME_LEN 100
 
 #ifdef PARSER_DEBUG
@@ -1592,6 +1595,7 @@ struct event_modifier {
 	int eu;
 	int ek;
 	int eh;
+	int em;
 	int eH;
 	int eG;
 	int eI;
@@ -1609,6 +1613,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	int eu = evsel ? evsel->core.attr.exclude_user : 0;
 	int ek = evsel ? evsel->core.attr.exclude_kernel : 0;
 	int eh = evsel ? evsel->core.attr.exclude_hv : 0;
+	int em = evsel ? evsel->core.attr.exclude_machine : 0;
 	int eH = evsel ? evsel->core.attr.exclude_host : 0;
 	int eG = evsel ? evsel->core.attr.exclude_guest : 0;
 	int eI = evsel ? evsel->core.attr.exclude_idle : 0;
@@ -1617,7 +1622,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	int sample_read = 0;
 	int pinned = evsel ? evsel->core.attr.pinned : 0;
 
-	int exclude = eu | ek | eh;
+	int exclude = eu | ek | eh | em;
 	int exclude_GH = evsel ? evsel->exclude_GH : 0;
 	int weak = 0;
 
@@ -1626,16 +1631,20 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	while (*str) {
 		if (*str == 'u') {
 			if (!exclude)
-				exclude = eu = ek = eh = 1;
+				exclude = eu = ek = eh = em = 1;
 			eu = 0;
 		} else if (*str == 'k') {
 			if (!exclude)
-				exclude = eu = ek = eh = 1;
+				exclude = eu = ek = eh = em = 1;
 			ek = 0;
 		} else if (*str == 'h') {
 			if (!exclude)
-				exclude = eu = ek = eh = 1;
+				exclude = eu = ek = eh = em = 1;
 			eh = 0;
+		} else if (*str == 'm') {
+			if (!exclude)
+				exclude = eu = ek = eh = em = 1;
+			em = 0;
 		} else if (*str == 'G') {
 			if (!exclude_GH)
 				exclude_GH = eG = eH = 1;
@@ -1681,6 +1690,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	mod->eu = eu;
 	mod->ek = ek;
 	mod->eh = eh;
+	mod->em = em;
 	mod->eH = eH;
 	mod->eG = eG;
 	mod->eI = eI;
@@ -1703,7 +1713,7 @@ static int check_modifier(char *str)
 	char *p = str;
 
 	/* The sizeof includes 0 byte as well. */
-	if (strlen(str) > (sizeof("ukhGHpppPSDIW") - 1))
+	if (strlen(str) > (sizeof("ukhmGHpppPSDIW") - 1))
 		return -1;
 
 	while (*p) {
@@ -1736,6 +1746,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->core.attr.exclude_user   = mod.eu;
 		evsel->core.attr.exclude_kernel = mod.ek;
 		evsel->core.attr.exclude_hv     = mod.eh;
+		evsel->core.attr.exclude_machine = mod.em;
 		evsel->core.attr.precise_ip     = mod.precise;
 		evsel->core.attr.exclude_host   = mod.eH;
 		evsel->core.attr.exclude_guest  = mod.eG;
@@ -2870,3 +2881,4 @@ char *parse_events_formats_error_string(char *additional_terms)
 fail:
 	return NULL;
 }
+#pragma GCC diagnostic pop

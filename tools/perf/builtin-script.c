@@ -60,6 +60,9 @@
 
 #include <linux/ctype.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-overflow"
+
 static char const		*script_name;
 static char const		*generate_script_lang;
 static bool			reltime;
@@ -599,7 +602,10 @@ static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask,
 
 	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs->regs[i++];
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wformat-overflow"
 		printed += fprintf(fp, "%5s:0x%"PRIx64" ", perf_reg_name(r), val);
+        #pragma GCC diagnostic pop
 	}
 
 	fprintf(fp, "\n");
@@ -3906,3 +3912,5 @@ out_delete:
 out:
 	return err;
 }
+
+#pragma GCC diagnostic pop

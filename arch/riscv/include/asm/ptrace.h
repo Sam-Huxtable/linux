@@ -48,6 +48,7 @@ struct pt_regs {
 	unsigned long sstatus;
 	unsigned long sbadaddr;
 	unsigned long scause;
+	unsigned long sdcause;
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
 };
@@ -58,6 +59,7 @@ struct pt_regs {
 #define REG_FMT "%08lx"
 #endif
 
+#define arch_has_single_step() (1)
 #define user_mode(regs) (((regs)->sstatus & SR_SPP) == 0)
 
 

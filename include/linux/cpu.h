@@ -158,6 +158,18 @@ static inline int suspend_disable_secondary_cpus(void)
 	if (IS_ENABLED(CONFIG_PM_SLEEP_SMP_NONZERO_CPU))
 		cpu = -1;
 
+	/*
+	 * Kernel cpu_id is not match to risc-v hartid.
+	 * We make sure that primary cpu_id corresponds to
+	 * risc-v hartid 0.
+	 */
+	if (IS_ENABLED(CONFIG_ATCSMU)) {
+		for_each_possible_cpu(cpu) {
+			if (cpuid_to_hartid_map(cpu) == 0)
+				break;
+		}
+	}
+
 	return freeze_secondary_cpus(cpu);
 }
 static inline void suspend_enable_secondary_cpus(void)

@@ -10,4 +10,11 @@ config SOC_SIFIVE
        help
          This enables support for SiFive SoC platform hardware.
 
+config ANDES_QEMU_SUPPORT
+	bool "Andes QEMU SUPPORT"
+	depends on SOC_SIFIVE
+	default n
+	help
+	  Andes QEMU Support.
+
 endmenu

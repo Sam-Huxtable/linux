@@ -14,6 +14,8 @@
 #include <linux/ptrace.h>
 #include <linux/elf.h>
 #include <linux/regset.h>
+#include <asm/sbi.h>
+#include <asm/cacheflush.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/tracehook.h>
@@ -128,6 +130,7 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 void ptrace_disable(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request,
@@ -144,6 +147,42 @@ long arch_ptrace(struct task_struct *child, long request,
 	return ret;
 }
 
+#define CNOP           0x0001
+#define CNOP_SIZE      0x2
+extern void bypass_singlestep(void);
+static void modify_bypass_to_nop(void)
+{
+	unsigned int nop = CNOP;
+	probe_kernel_write(&bypass_singlestep, &nop, CNOP_SIZE);
+	smp_mb();
+	flush_icache_range(&bypass_singlestep, &bypass_singlestep + CNOP_SIZE);
+}
+static bool is_bypass_singlestep = true;
+void user_enable_single_step(struct task_struct *child)
+{
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
+	if (is_bypass_singlestep) {
+		modify_bypass_to_nop();
+		is_bypass_singlestep = false;
+	}
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
+}
+
+#define TRIGGER_TYPE_ICOUNT 3
+#define ICOUNT 1
+void do_singlestep(void)
+{
+	if (test_thread_flag(TIF_SINGLESTEP)) {
+		sbi_set_trigger(TRIGGER_TYPE_ICOUNT, ICOUNT, 1);
+		csr_write(CSR_SCONTEXT, 1);
+	} else {
+		csr_write(CSR_SCONTEXT, 0);
+	}
+}
 /*
  * Allows PTRACE_SYSCALL to work.  These are called from entry.S in
  * {handle,ret_from}_syscall.
@@ -164,10 +203,13 @@ __visible void do_syscall_trace_enter(struct pt_regs *regs)
 
 __visible void do_syscall_trace_exit(struct pt_regs *regs)
 {
+	int step;
+
 	audit_syscall_exit(regs);
+	step = test_thread_flag(TIF_SINGLESTEP);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
+		tracehook_report_syscall_exit(regs, step);
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
