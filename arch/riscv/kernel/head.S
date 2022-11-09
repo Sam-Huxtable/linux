@@ -174,7 +174,7 @@ ENTRY(_start_kernel)
     li t0, 0x7d
     csrw scounteren, t0
 
-    li t0, (18 << 4 | 1)
+    /*li t0, (18 << 4 | 1)
     csrw shpmevent3, t0
 
     li t0, (20 << 4 | 1)
@@ -184,7 +184,7 @@ ENTRY(_start_kernel)
     csrw shpmevent5, t0
 
     li t0, (22 << 4 | 1)
-    csrw shpmevent6, t0
+    csrw shpmevent6, t0*/
 
 #ifdef CONFIG_SMP
 	li t0, CONFIG_NR_CPUS
