@@ -49,7 +49,7 @@ ENTRY(_start)
 	.ascii RISCV_IMAGE_MAGIC2
 	.word 0
 
-.align 2
+.align 4
 #ifdef CONFIG_MMU
 relocate:
 	/* Relocate return address */
@@ -79,7 +79,7 @@ relocate:
 	or a0, a0, a1
 	sfence.vma
 	csrw CSR_SATP, a0
-.align 2
+.align 4
 1:
 	/* Set trap vector to spin forever to help debug */
 	la a0, .Lsecondary_park
@@ -145,6 +145,7 @@ secondary_start_common:
 	tail smp_callin
 #endif /* CONFIG_SMP */
 
+.align 8
 .Lsecondary_park:
 	/* We lack SMP support or have too many harts, so park this hart */
 	wfi
