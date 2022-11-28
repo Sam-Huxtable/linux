@@ -58,8 +58,8 @@ void show_regs(struct pt_regs *regs)
 	pr_cont(" t5 : " REG_FMT " t6 : " REG_FMT "\n",
 		regs->t5, regs->t6);
 
-	pr_cont("sstatus: " REG_FMT " sbadaddr: " REG_FMT " scause: " REG_FMT " sdcause: " REG_FMT "\n",
-		regs->sstatus, regs->sbadaddr, regs->scause, regs->sdcause);
+	pr_cont("sstatus: " REG_FMT " sbadaddr: " REG_FMT " scause: " REG_FMT "\n",
+		regs->sstatus, regs->sbadaddr, regs->scause);
 }
 
 void start_thread(struct pt_regs *regs, unsigned long pc,
