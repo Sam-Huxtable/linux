@@ -246,6 +246,34 @@ static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t dw_spi_enh_handler(struct dw_spi *dws)
+{
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
+
+	if (dw_spi_check_status(dws, false)) {
+		spi_finalize_current_transfer(dws->master);
+		return IRQ_HANDLED;
+	}
+
+	if (irq_status & DW_SPI_INT_RXFI) {
+		dw_reader(dws);
+		if (dws->rx_len <= dw_readl(dws, DW_SPI_RXFTLR))
+			dw_writel(dws, DW_SPI_RXFTLR, dws->rx_len - 1);
+	}
+
+	if (irq_status & DW_SPI_INT_TXEI)
+		dw_writer(dws);
+
+	if (!dws->tx_len && dws->rx_len) {
+		dw_spi_mask_intr(dws, DW_SPI_INT_TXEI);
+	} else if (!dws->rx_len && !dws->tx_len) {
+		dw_spi_mask_intr(dws, 0xff);
+		spi_finalize_current_transfer(dws->master);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 {
 	struct spi_controller *master = dev_id;
@@ -258,6 +286,12 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	if (!master->cur_msg && dws->transfer_handler ==
 	    dw_spi_transfer_handler) {
 		dw_spi_mask_intr(dws, 0xff);
+		return IRQ_HANDLED;
+	}
+	if ((dws->transfer_handler == dw_spi_enh_handler &&
+	     !dws->rx_len && !dws->tx_len)) {
+		dw_spi_mask_intr(dws, 0xff);
+		spi_finalize_current_transfer(master);
 		return IRQ_HANDLED;
 	}
 
@@ -860,6 +894,8 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 	struct spi_controller *ctlr = mem->spi->controller;
 	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
 	struct dw_spi_cfg cfg;
+	int ret = 0;
+	unsigned long long ms;
 
 	switch (op->data.buswidth) {
 	case 2:
@@ -907,11 +943,35 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 
 	dw_spi_update_config(dws, mem->spi, &cfg);
 
+	dw_spi_mask_intr(dws, 0xff);
+	reinit_completion(&ctlr->xfer_completion);
 	dw_spi_enable_chip(dws, 1);
 
 	dw_spi_enh_write_cmd_addr(dws, op);
+	dw_spi_set_cs(mem->spi, false);
+	dw_spi_irq_setup(dws, dw_spi_enh_handler);
 
-	return 0;
+	/* Use timeout calculation from spi_transfer_wait() */
+	ms = 8LL * MSEC_PER_SEC * (dws->rx_len ? dws->rx_len : dws->tx_len);
+	do_div(ms, dws->current_freq);
+
+	/*
+	 * Increase it twice and add 200 ms tolerance, use
+	 * predefined maximum in case of overflow.
+	 */
+	ms += ms + 200;
+	if (ms > UINT_MAX)
+		ms = UINT_MAX;
+
+	ms = wait_for_completion_timeout(&ctlr->xfer_completion,
+					 msecs_to_jiffies(ms));
+
+	dw_spi_stop_mem_op(dws, mem->spi);
+
+	if (ms == 0)
+		ret = -EIO;
+
+	return ret;
 }
 
 /*
