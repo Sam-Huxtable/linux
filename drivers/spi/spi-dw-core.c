@@ -255,7 +255,8 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	if (!irq_status)
 		return IRQ_NONE;
 
-	if (!master->cur_msg) {
+	if (!master->cur_msg && dws->transfer_handler ==
+	    dw_spi_transfer_handler) {
 		dw_spi_mask_intr(dws, 0xff);
 		return IRQ_HANDLED;
 	}
@@ -375,7 +376,8 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 }
 EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, SPI_DW_CORE);
 
-static void dw_spi_irq_setup(struct dw_spi *dws)
+static void dw_spi_irq_setup(struct dw_spi *dws,
+			     irqreturn_t (*t_handler)(struct dw_spi *))
 {
 	u16 level;
 	u8 imask;
@@ -389,7 +391,7 @@ static void dw_spi_irq_setup(struct dw_spi *dws)
 	dw_writel(dws, DW_SPI_TXFTLR, level);
 	dw_writel(dws, DW_SPI_RXFTLR, level - 1);
 
-	dws->transfer_handler = dw_spi_transfer_handler;
+	dws->transfer_handler = t_handler;
 
 	imask = DW_SPI_INT_TXEI | DW_SPI_INT_TXOI |
 		DW_SPI_INT_RXUI | DW_SPI_INT_RXOI | DW_SPI_INT_RXFI;
@@ -484,7 +486,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 	else if (dws->irq == IRQ_NOTCONNECTED)
 		return dw_spi_poll_transfer(dws, transfer);
 
-	dw_spi_irq_setup(dws);
+	dw_spi_irq_setup(dws, dw_spi_transfer_handler);
 
 	return 1;
 }
