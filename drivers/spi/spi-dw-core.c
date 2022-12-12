@@ -904,7 +904,7 @@ static void dw_spi_enh_write_cmd_addr(struct dw_spi *dws, const struct spi_mem_o
 	}
 }
 
-static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
+static int dw_spi_try_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct spi_controller *ctlr = mem->spi->controller;
 	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
@@ -985,6 +985,21 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 
 	if (ms == 0)
 		ret = -EIO;
+
+	return ret;
+}
+
+static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
+{
+	struct spi_controller *ctlr = mem->spi->controller;
+	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
+	int retry, ret = -EIO;
+
+	for (retry = 0; retry < DW_SPI_WAIT_RETRIES && ret != 0; retry++)
+		ret = dw_spi_try_enh_mem_op(mem, op);
+
+	if (retry == DW_SPI_WAIT_RETRIES)
+		dev_err(&dws->master->dev, "Retry of enh_mem_op failed\n");
 
 	return ret;
 }
