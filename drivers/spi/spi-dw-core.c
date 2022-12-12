@@ -421,8 +421,16 @@ static void dw_spi_irq_setup(struct dw_spi *dws,
 	 * will be adjusted at the final stage of the IRQ-based SPI transfer
 	 * execution so not to lose the leftover of the incoming data.
 	 */
-	level = min_t(unsigned int, dws->fifo_len / 2, dws->tx_len);
+	level = min_t(u16, dws->fifo_len / 2, dws->tx_len);
 	dw_writel(dws, DW_SPI_TXFTLR, level);
+
+	/*
+	* In enhanced mode if we are reading then tx_len is 0 as we
+	* have nothing to transmit. Calculate DW_SPI_RXFTLR with
+	* rx_len.
+	*/
+	if (t_handler == dw_spi_enh_handler)
+		level = min_t(u16, dws->fifo_len / 2, dws->rx_len);
 	dw_writel(dws, DW_SPI_RXFTLR, level - 1);
 
 	dws->transfer_handler = t_handler;
