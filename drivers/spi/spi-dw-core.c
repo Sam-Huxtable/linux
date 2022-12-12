@@ -834,9 +834,55 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 {
 	struct spi_controller *ctlr = mem->spi->controller;
 	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
+	struct dw_spi_cfg cfg;
+
+	switch (op->data.buswidth) {
+	case 2:
+		cfg.spi_frf = DW_SPI_CTRLR0_SPI_FRF_DUAL_SPI;
+		break;
+	case 4:
+		cfg.spi_frf = DW_SPI_CTRLR0_SPI_FRF_QUAD_SPI;
+		break;
+	case 8:
+		cfg.spi_frf = DW_SPI_CTRLR0_SPI_FRF_OCT_SPI;
+		break;
+	default:
+		return dw_spi_exec_mem_op(mem, op);
+	}
 
 	/* Collect cmd and addr into a single buffer */
 	dw_spi_init_enh_mem_buf(dws, op);
+
+	cfg.dfs = 8;
+	cfg.freq = clamp(mem->spi->max_speed_hz, 0U, dws->max_mem_freq);
+	cfg.ndf = op->data.nbytes;
+	if (op->data.dir == SPI_MEM_DATA_IN)
+		cfg.tmode = DW_SPI_CTRLR0_TMOD_RO;
+	else
+		cfg.tmode = DW_SPI_CTRLR0_TMOD_TO;
+	if (op->data.buswidth == op->addr.buswidth &&
+	    op->data.buswidth == op->cmd.buswidth)
+		cfg.trans_t = DW_SPI_SPI_CTRLR0_TRANS_TYPE_TT2;
+	else if (op->data.buswidth == op->addr.buswidth)
+		cfg.trans_t = DW_SPI_SPI_CTRLR0_TRANS_TYPE_TT1;
+	else
+		cfg.trans_t = DW_SPI_SPI_CTRLR0_TRANS_TYPE_TT0;
+
+	cfg.addr_l = clamp(op->addr.nbytes * 2, 0, 0xf);
+	if (op->cmd.nbytes > 1)
+		cfg.inst_l = DW_SPI_SPI_CTRLR0_INST_L_INST_L16;
+	else if (op->cmd.nbytes == 1)
+		cfg.inst_l = DW_SPI_SPI_CTRLR0_INST_L_INST_L8;
+	else
+		cfg.inst_l = DW_SPI_SPI_CTRLR0_INST_L_INST_L0;
+
+	cfg.wait_c = (op->dummy.nbytes * (BITS_PER_BYTE / op->dummy.buswidth));
+
+	dw_spi_enable_chip(dws, 0);
+
+	dw_spi_update_config(dws, mem->spi, &cfg);
+
+	dw_spi_enable_chip(dws, 1);
 
 	return 0;
 }
