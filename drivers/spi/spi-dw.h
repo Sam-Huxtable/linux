@@ -63,6 +63,7 @@
 #define DW_SPI_DR			0x60
 #define DW_SPI_RX_SAMPLE_DLY		0xf0
 #define DW_SPI_CS_OVERRIDE		0xf4
+#define DW_SPI_SPI_CTRLR0		0xf4
 
 /* Bit fields in CTRLR0 (DWC APB SSI) */
 #define DW_PSSI_CTRLR0_DFS_MASK			GENMASK(3, 0)
@@ -126,6 +127,12 @@
 #define DW_SPI_DMACR_RDMAE			BIT(0)
 #define DW_SPI_DMACR_TDMAE			BIT(1)
 
+/* Bit fields in SPI_CTRLR0 */
+#define DW_SPI_SPI_CTRLR0_CLK_STRETCH_EN	BIT(30)
+#define DW_SPI_SPI_CTRLR0_WAIT_CYCLE_MASK	GENMASK(15, 11)
+#define DW_SPI_SPI_CTRLR0_INST_L_MASK		GENMASK(9, 8)
+#define DW_SPI_SPI_CTRLR0_ADDR_L_MASK		GENMASK(5, 2)
+
 /* Mem/DMA operations helpers */
 #define DW_SPI_WAIT_RETRIES			5
 #define DW_SPI_BUF_SIZE \
@@ -141,6 +148,10 @@ struct dw_spi_cfg {
 	u32 ndf;
 	u32 freq;
 	u8 spi_frf;
+	u8 trans_t;
+	u8 inst_l;
+	u8 addr_l;
+	u8 wait_c;
 };
 
 struct dw_spi;

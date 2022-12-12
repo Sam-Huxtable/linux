@@ -315,7 +315,7 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 {
 	struct dw_spi_chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0 = chip->cr0;
-	u32 speed_hz;
+	u32 speed_hz, spi_ctrlr0;
 	u16 clk_div;
 
 	/* CTRLR0[ 4/3: 0] or CTRLR0[ 20: 16] Data Frame Size */
@@ -359,6 +359,18 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 	if (dws->cur_rx_sample_dly != chip->rx_sample_dly) {
 		dw_writel(dws, DW_SPI_RX_SAMPLE_DLY, chip->rx_sample_dly);
 		dws->cur_rx_sample_dly = chip->rx_sample_dly;
+	}
+
+	if (cfg->spi_frf != DW_SPI_CTRLR0_SPI_FRF_STD_SPI) {
+		spi_ctrlr0 = DW_SPI_SPI_CTRLR0_CLK_STRETCH_EN;
+		spi_ctrlr0 |= FIELD_PREP(DW_SPI_SPI_CTRLR0_WAIT_CYCLE_MASK,
+					 cfg->wait_c);
+		spi_ctrlr0 |= FIELD_PREP(DW_SPI_SPI_CTRLR0_INST_L_MASK,
+					 cfg->inst_l);
+		spi_ctrlr0 |= FIELD_PREP(DW_SPI_SPI_CTRLR0_ADDR_L_MASK,
+					 cfg->addr_l);
+		spi_ctrlr0 |= cfg->trans_t;
+		dw_writel(dws, DW_SPI_SPI_CTRLR0, spi_ctrlr0);
 	}
 }
 EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, SPI_DW_CORE);
