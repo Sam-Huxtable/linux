@@ -796,6 +796,51 @@ static int dw_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	return ret;
 }
 
+static void dw_spi_init_enh_mem_buf(struct dw_spi *dws, const struct spi_mem_op *op)
+{
+	unsigned int i, j;
+	u8 *out;
+
+	out = dws->buf;
+	for (i = 0; i < DW_SPI_BUF_SIZE; ++i)
+		out[i] = 0;
+
+	for (i = 0, j = op->cmd.nbytes; i < op->cmd.nbytes; ++i, --j)
+		out[i] = DW_SPI_GET_BYTE(op->cmd.opcode, op->cmd.nbytes - j);
+
+	for (j = op->addr.nbytes, i = dws->reg_io_width; j > 0; ++i, --j)
+		out[i] = DW_SPI_GET_BYTE(op->addr.val, op->addr.nbytes - j);
+
+	dws->n_bytes = 1;
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		dws->rx = op->data.buf.in;
+		dws->rx_len = op->data.nbytes;
+		dws->tx = NULL;
+		dws->tx_len = 0;
+	} else if (op->data.dir == SPI_MEM_DATA_OUT) {
+		dws->tx_len = op->data.nbytes;
+		dws->tx = (void *)op->data.buf.out;
+		dws->rx = NULL;
+		dws->rx_len = 0;
+	} else {
+		dws->rx = NULL;
+		dws->rx_len = 0;
+		dws->tx = NULL;
+		dws->tx_len = 0;
+	}
+}
+
+static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
+{
+	struct spi_controller *ctlr = mem->spi->controller;
+	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
+
+	/* Collect cmd and addr into a single buffer */
+	dw_spi_init_enh_mem_buf(dws, op);
+
+	return 0;
+}
+
 /*
  * Initialize the default memory operations if a glue layer hasn't specified
  * custom ones. Direct mapping operations will be preserved anyway since DW SPI
@@ -810,11 +855,13 @@ static void dw_spi_init_mem_ops(struct dw_spi *dws)
 	if (!dws->mem_ops.exec_op && !(dws->caps & DW_SPI_CAP_CS_OVERRIDE) &&
 	    !dws->set_cs) {
 		dws->mem_ops.adjust_op_size = dw_spi_adjust_mem_op_size;
-		if (dws->caps & DW_SPI_CAP_EMODE)
+		if (dws->caps & DW_SPI_CAP_EMODE) {
+			dws->mem_ops.exec_op = dw_spi_exec_enh_mem_op;
 			dws->mem_ops.supports_op = dw_spi_supports_enh_mem_op;
-		else
+		} else {
+			dws->mem_ops.exec_op = dw_spi_exec_mem_op;
 			dws->mem_ops.supports_op = dw_spi_supports_mem_op;
-		dws->mem_ops.exec_op = dw_spi_exec_mem_op;
+		}
 		if (!dws->max_mem_freq)
 			dws->max_mem_freq = dws->max_freq;
 	}
