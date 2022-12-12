@@ -1141,6 +1141,69 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 		dw_writel(dws, DW_SPI_CS_OVERRIDE, 0xF);
 }
 
+static u16 detect_enh_mode(struct dw_spi *dws)
+{
+	u16 mode = 0;
+	u32 tmp_spi_ctrlr0, tmp_ctrlr0, tmpdual, tmpquad, tmpoct;
+
+	if (dw_spi_ver_is_ge(dws, HSSI, 103A)) {
+		tmpdual = FIELD_PREP(DW_HSSI_CTRLR0_SPI_FRF_MASK,
+				     DW_SPI_CTRLR0_SPI_FRF_DUAL_SPI);
+		tmpquad = FIELD_PREP(DW_HSSI_CTRLR0_SPI_FRF_MASK,
+				     DW_SPI_CTRLR0_SPI_FRF_QUAD_SPI);
+		tmpoct = FIELD_PREP(DW_HSSI_CTRLR0_SPI_FRF_MASK,
+				    DW_SPI_CTRLR0_SPI_FRF_OCT_SPI);
+	} else if (dw_spi_ver_is_ge(dws, PSSI, 400A)) {
+		tmpdual = FIELD_PREP(DW_PSSI_CTRLR0_SPI_FRF_MASK,
+				     DW_SPI_CTRLR0_SPI_FRF_DUAL_SPI);
+		tmpquad = FIELD_PREP(DW_PSSI_CTRLR0_SPI_FRF_MASK,
+				     DW_SPI_CTRLR0_SPI_FRF_QUAD_SPI);
+		tmpoct = FIELD_PREP(DW_PSSI_CTRLR0_SPI_FRF_MASK,
+				    DW_SPI_CTRLR0_SPI_FRF_OCT_SPI);
+	} else {
+		return DW_SPI_CTRLR0_SPI_FRF_STD_SPI;
+	}
+
+	tmp_ctrlr0 = dw_readl(dws, DW_SPI_CTRLR0);
+	tmp_spi_ctrlr0 = dw_readl(dws, DW_SPI_SPI_CTRLR0);
+	dw_spi_enable_chip(dws, 0);
+
+	/* test clock stretching */
+	dw_writel(dws, DW_SPI_SPI_CTRLR0, DW_SPI_SPI_CTRLR0_CLK_STRETCH_EN);
+	if ((DW_SPI_SPI_CTRLR0_CLK_STRETCH_EN & dw_readl(dws, DW_SPI_SPI_CTRLR0)) !=
+	    DW_SPI_SPI_CTRLR0_CLK_STRETCH_EN)
+		/*
+		 * If clock stretching is not enabled then do not use
+		 * enhanced mode.
+		 */
+		goto disable_enh;
+
+	/* test dual mode */
+	dw_writel(dws, DW_SPI_CTRLR0, tmpdual);
+	if ((tmpdual & dw_readl(dws, DW_SPI_CTRLR0)) == tmpdual)
+		mode |= SPI_TX_DUAL | SPI_RX_DUAL;
+
+	/* test quad mode */
+	dw_writel(dws, DW_SPI_CTRLR0, tmpquad);
+	if ((tmpquad & dw_readl(dws, DW_SPI_CTRLR0)) == tmpquad)
+		mode |= SPI_TX_QUAD | SPI_RX_QUAD;
+
+	/* test octal mode */
+	dw_writel(dws, DW_SPI_CTRLR0, tmpoct);
+	if ((tmpoct & dw_readl(dws, DW_SPI_CTRLR0)) == tmpoct)
+		mode |= SPI_TX_OCTAL | SPI_RX_OCTAL;
+
+	if (mode)
+		dws->caps |= DW_SPI_CAP_EMODE;
+
+disable_enh:
+	dw_writel(dws, DW_SPI_CTRLR0, tmp_ctrlr0);
+	dw_writel(dws, DW_SPI_SPI_CTRLR0, tmp_spi_ctrlr0);
+	dw_spi_enable_chip(dws, 1);
+
+	return mode;
+}
+
 int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 {
 	struct spi_controller *master;
@@ -1168,10 +1231,11 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		goto err_free_master;
 	}
 
-	dw_spi_init_mem_ops(dws);
-
 	master->use_gpio_descriptors = true;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP;
+	master->mode_bits |= detect_enh_mode(dws);
+	dw_spi_init_mem_ops(dws);
+
 	if (dws->caps & DW_SPI_CAP_DFS32)
 		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	else
