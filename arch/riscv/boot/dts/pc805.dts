@@ -113,7 +113,7 @@
         reg-names = "control";
         local-mac-address = [70 b3 d5 92 f0 4a];
         phy-mode = "gmii";
-        clocks = <&hclk>, <&pclk>;
+        clocks = <&per_clk>, <&per_clk>;
         clock-names = "hclk", "pclk";
         #address-cells = <0x01>;
         #size-cells = <0x00>;
