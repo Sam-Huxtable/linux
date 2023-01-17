@@ -105,7 +105,7 @@
         interrupt-parent = <&plic0>;
     };
 
-    ethernet@0x08A44000 {
+    ethernet@8a44000 {
         compatible = "cdns,macb";
         interrupt-parent = <&plic0>;
         interrupts = <73>;
@@ -113,8 +113,8 @@
         reg-names = "control";
         local-mac-address = [70 b3 d5 92 f0 4a];
         phy-mode = "gmii";
-        clocks = <&per_clk>;
-        clock-names = "baudclk";
+        clocks = <&hclk>, <&pclk>;
+        clock-names = "hclk", "pclk";
         #address-cells = <0x01>;
         #size-cells = <0x00>;
 
