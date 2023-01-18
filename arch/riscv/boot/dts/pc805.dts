@@ -105,11 +105,11 @@
         interrupt-parent = <&plic0>;
     };
 
-    ethernet@8a44000 {
+    ethernet@08480000 {
         compatible = "cdns,macb";
         interrupt-parent = <&plic0>;
-        interrupts = <73>;
-        reg = <0x08A44000 0x2000>;
+        interrupts = <6>;
+        reg = <0x08480000 0x2000>;
         reg-names = "control";
         local-mac-address = [70 b3 d5 92 f0 4a];
         phy-mode = "gmii";
