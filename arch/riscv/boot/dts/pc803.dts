@@ -1,7 +1,7 @@
 /dts-v1/;
 / {
-    #address-cells = <1>;
-    #size-cells = <1>;
+    #address-cells = <2>;
+    #size-cells = <2>;
 
     aliases {
         uart0 = "/serial@8212000";
@@ -76,7 +76,7 @@
     memory@80000000 {
         /* ddr 256M */
         device_type = "memory";
-        reg = <0x80000000 0x10000000>;
+        reg = <0x0 0x80000000 0x0 0x10000000>;
     };
 
 
@@ -93,13 +93,13 @@
 
     plmt0@C400000 {
         compatible = "riscv,plmt0";
-        reg = <0xC400000 0x100000>;
+        reg = <0x0 0xC400000 0x0 0x100000>;
         interrupts-extended = <&cpu0_intc 0x7 &cpu1_intc 0x7>;
     };
 
     serial@8212000 {
         compatible = "snps,dw-apb-uart";
-        reg = <0x8212000 0x100>;
+        reg = <0x0 0x8212000 0x0 0x100>;
         clocks = <&per_clk>;
         clock-names = "baudclk";
         interrupts = <70>;
@@ -110,7 +110,7 @@
 
     serial@8210000 {
         compatible = "snps,dw-apb-uaethernet@10090000rt";
-        reg = <0x8210000 0x100>;
+        reg = <0x0 0x8210000 0x0 0x100>;
         clocks = <&per_clk>;
         clock-names = "baudclk";
         interrupts = <71>;
@@ -121,7 +121,7 @@
 
     serial@8214000 {
         compatible = "snps,dw-apb-uart";
-        reg = <0x8214000 0x100>;
+        reg = <0x0 0x8214000 0x0 0x100>;
         clocks = <&per_clk>;
         clock-names = "baudclk";
         interrupts = <72>;
@@ -134,7 +134,7 @@
         compatible = "cdns,macb";
         interrupt-parent = <&plic0>;
         interrupts = <6>;
-        reg = <0x08480000 0x2000>;
+        reg = <0x0 0x08480000 0x0 0x2000>;
         reg-names = "control";
         local-mac-address = [70 b3 d5 92 f0 4a];
         phy-mode = "gmii";
