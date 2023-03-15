@@ -88,7 +88,7 @@
         interrupts-extended = <
             &cpu0_intc 11 &cpu0_intc 9
             &cpu1_intc 11 &cpu0_intc 9 >;
-        reg = <0xC800000 0x400000>;
+        reg = <0x0 0xC800000 0x0 0x400000>;
     };
 
     plmt0@C400000 {
