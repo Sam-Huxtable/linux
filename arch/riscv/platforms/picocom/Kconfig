@@ -12,5 +12,9 @@ config PALLADIUM
       This is for emulation acceleration. uart baudrate is highest.
 	  Otherwise, say N.
 
+config PICOCOM_PC805
+	bool "for Picocom PC805"
+	help
+      This is for Picocom PC805
     
 endmenu

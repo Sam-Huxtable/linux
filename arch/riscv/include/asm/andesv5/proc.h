@@ -8,6 +8,10 @@ void cpu_dcache_enable(void *info);
 void cpu_dcache_disable(void *info);
 uint32_t cpu_l2c_ctl_status(void);
 void cpu_l2c_disable(void);
+#ifdef CONFIG_PICOCOM_PC805
+void cpu_dma_wb_range_phy(phys_addr_t paddr, size_t size);
+void cpu_dma_inval_range_phy(phys_addr_t paddr, size_t size);
+#endif
 
 long get_non_blocking_status(void);
 long get_write_around_status(void);

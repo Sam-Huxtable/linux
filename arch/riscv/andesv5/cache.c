@@ -21,7 +21,9 @@
 #define SEL_PER_CTL	8
 #define SEL_OFF(id)	(8 * (id % 8))
 
+#ifndef CONFIG_PICOCOM_PC805
 void __iomem *l2c_base;
+#endif
 
 DEFINE_PER_CPU(struct andesv5_cache_info, cpu_cache_info) = {
 	.init_done = 0,
@@ -56,14 +58,18 @@ inline int get_cache_line_size(void)
 	return cpu_ci->dcache_line_size;
 }
 
+#ifndef CONFIG_PICOCOM_PC805
 static uint32_t cpu_l2c_get_cctl_status(void)
 {
 	return readl((void*)(l2c_base + L2C_REG_STATUS_OFFSET));
 }
+#endif
 
 void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size, struct page *page)
 {
+#ifndef CONFIG_PICOCOM_PC805
 	int mhartid = get_cpu();
+#endif
 	unsigned long pa = page_to_phys(page);
 
 	if(start & (~PAGE_MASK))
@@ -72,24 +78,28 @@ void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size, 
 	while (end > start) {
 		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
-
+#ifndef CONFIG_PICOCOM_PC805
 		if (l2c_base) {
 			writel(pa, (void*)(l2c_base + L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_WB, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
 			while ((cpu_l2c_get_cctl_status() & CCTL_L2_STATUS_CN_MASK(mhartid))
 				!= CCTL_L2_STATUS_IDLE);
 		}
-
+#endif
 		start += line_size;
 		pa += line_size;
 
 	}
+#ifndef CONFIG_PICOCOM_PC805
     put_cpu();
+#endif
 }
 
 void cpu_dcache_inval_range(unsigned long start, unsigned long end, int line_size, struct page *page)
 {
+#ifndef CONFIG_PICOCOM_PC805
 	int mhartid = get_cpu();
+#endif
 	unsigned long pa = page_to_phys(page);
 
 	if(start & (~PAGE_MASK))
@@ -98,18 +108,20 @@ void cpu_dcache_inval_range(unsigned long start, unsigned long end, int line_siz
 	while (end > start) {
 		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
-
+#ifndef CONFIG_PICOCOM_PC805
 		if (l2c_base) {
 			writel(pa, (void*)(l2c_base + L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_INVAL, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
 			while ((cpu_l2c_get_cctl_status() & CCTL_L2_STATUS_CN_MASK(mhartid))
 				!= CCTL_L2_STATUS_IDLE);
 		}
-
+#endif
 		start += line_size;
 		pa += line_size;
 	}
+#ifndef CONFIG_PICOCOM_PC805
     put_cpu();
+#endif
 }
 void cpu_dma_inval_range(void *info)
 {
@@ -161,6 +173,60 @@ void cpu_dma_wb_range(void *info)
         local_irq_restore(flags);
 }
 EXPORT_SYMBOL(cpu_dma_wb_range);
+
+#ifdef CONFIG_PICOCOM_PC805
+void cpu_dma_inval_range_phy(phys_addr_t paddr, size_t size)
+{
+    unsigned long flags;
+    unsigned long line_size = get_cache_line_size();
+    unsigned long start = (unsigned long)paddr;
+    unsigned long end = start + size;
+
+    if (unlikely(start == end))
+        return;
+
+    local_irq_save(flags);
+
+    start = start & (~(line_size - 1));
+    end = ((end + line_size - 1) & (~(line_size - 1)));
+
+    while (end > start) {
+        custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
+        custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
+
+        start += line_size;
+    }
+
+    local_irq_restore(flags);
+}
+EXPORT_SYMBOL(cpu_dma_inval_range_phy);
+
+void cpu_dma_wb_range_phy(phys_addr_t paddr, size_t size)
+{
+    unsigned long flags;
+    unsigned long line_size = get_cache_line_size();
+    unsigned long start = (unsigned long)paddr;
+    unsigned long end = start + size;
+
+    if (unlikely(start == end))
+        return;
+
+    local_irq_save(flags);
+
+    start = start & (~(line_size - 1));
+    end = ((end + line_size - 1) & (~(line_size - 1)));
+
+    while (end > start) {
+        custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
+        custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
+
+        start += line_size;
+    }
+
+    local_irq_restore(flags);
+}
+EXPORT_SYMBOL(cpu_dma_wb_range_phy);
+#endif
 
 /*non-blocking load store*/
 long get_non_blocking_status(void)
@@ -315,6 +381,7 @@ void cpu_dcache_disable(void *info)
 	local_irq_restore(flags);
 }
 
+#ifndef CONFIG_PICOCOM_PC805
 /* L2 Cache */
 uint32_t cpu_l2c_ctl_status(void)
 {
@@ -531,3 +598,4 @@ int __init l2c_init(void)
 	return 0;
 }
 arch_initcall(l2c_init)
+#endif /* !CONFIG_PICOCOM_PC805 */

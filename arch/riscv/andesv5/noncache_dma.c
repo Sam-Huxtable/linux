@@ -91,12 +91,20 @@ void arch_sync_dma_for_device(struct device *dev, phys_addr_t paddr,
 {
 	switch (dir) {
 	case DMA_FROM_DEVICE:
+#ifdef CONFIG_PICOCOM_PC805
+        cpu_dma_inval_range_phy(paddr, size);
+#else
     // Bug 18339
     cache_op(paddr, size, cpu_dma_inval_range);
+#endif
 		break;
 	case DMA_TO_DEVICE:
 	case DMA_BIDIRECTIONAL:
+#ifdef CONFIG_PICOCOM_PC805
+        cpu_dma_wb_range_phy(paddr, size);
+#else
 		cache_op(paddr, size, cpu_dma_wb_range);
+#endif
 		break;
 	default:
 		BUG();
@@ -108,11 +116,18 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 {
 	switch (dir) {
 	case DMA_TO_DEVICE:
+#ifdef CONFIG_PICOCOM_PC805
+        cpu_dma_wb_range_phy(paddr, size);
+#endif
 		break;
 	case DMA_FROM_DEVICE:
 	case DMA_BIDIRECTIONAL:
+#ifdef CONFIG_PICOCOM_PC805
+        cpu_dma_inval_range_phy(paddr, size);
+#else
     // for pre-fetch
 		cache_op(paddr, size, cpu_dma_inval_range);
+#endif
 		break;
 	default:
 		BUG();
