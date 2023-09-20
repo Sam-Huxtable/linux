@@ -69,7 +69,6 @@ void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size, 
 {
 #ifndef CONFIG_PICOCOM_PC805
 	int mhartid = get_cpu();
-#endif
 	unsigned long pa = page_to_phys(page);
 
 	if(start & (~PAGE_MASK))
@@ -78,19 +77,35 @@ void cpu_dcache_wb_range(unsigned long start, unsigned long end, int line_size, 
 	while (end > start) {
 		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
-#ifndef CONFIG_PICOCOM_PC805
+
 		if (l2c_base) {
 			writel(pa, (void*)(l2c_base + L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_WB, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
 			while ((cpu_l2c_get_cctl_status() & CCTL_L2_STATUS_CN_MASK(mhartid))
 				!= CCTL_L2_STATUS_IDLE);
 		}
-#endif
+
 		start += line_size;
 		pa += line_size;
-
 	}
-#ifndef CONFIG_PICOCOM_PC805
+
+    put_cpu();
+#else
+    get_cpu();
+    unsigned long pa_start = page_to_phys(page);
+    unsigned long pa_end;
+
+    if(start & (~PAGE_MASK))
+        pa_start += start & ~PAGE_MASK;
+    pa_end = pa_start + (end - start);
+
+    while (pa_end > pa_start) {
+        custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, pa_start);
+        custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_WB);
+
+        pa_start += line_size;
+    }
+
     put_cpu();
 #endif
 }
@@ -99,7 +114,6 @@ void cpu_dcache_inval_range(unsigned long start, unsigned long end, int line_siz
 {
 #ifndef CONFIG_PICOCOM_PC805
 	int mhartid = get_cpu();
-#endif
 	unsigned long pa = page_to_phys(page);
 
 	if(start & (~PAGE_MASK))
@@ -108,18 +122,35 @@ void cpu_dcache_inval_range(unsigned long start, unsigned long end, int line_siz
 	while (end > start) {
 		custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
 		custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
-#ifndef CONFIG_PICOCOM_PC805
+
 		if (l2c_base) {
 			writel(pa, (void*)(l2c_base + L2C_REG_CN_ACC_OFFSET(mhartid)));
 			writel(CCTL_L2_PA_INVAL, (void*)(l2c_base + L2C_REG_CN_CMD_OFFSET(mhartid)));
 			while ((cpu_l2c_get_cctl_status() & CCTL_L2_STATUS_CN_MASK(mhartid))
 				!= CCTL_L2_STATUS_IDLE);
 		}
-#endif
+
 		start += line_size;
 		pa += line_size;
 	}
-#ifndef CONFIG_PICOCOM_PC805
+
+    put_cpu();
+#else
+    get_cpu();
+    unsigned long pa_start = page_to_phys(page);
+    unsigned long pa_end;
+
+    if(start & (~PAGE_MASK))
+        pa_start += start & ~PAGE_MASK;
+    pa_end = pa_start + (end - start);
+
+    while (pa_end > pa_start) {
+        custom_csr_write(CCTL_REG_UCCTLBEGINADDR_NUM, start);
+        custom_csr_write(CCTL_REG_UCCTLCOMMAND_NUM, CCTL_L1D_VA_INVAL);
+
+        pa_start += line_size;
+    }
+
     put_cpu();
 #endif
 }
@@ -186,6 +217,7 @@ void cpu_dma_inval_range_phy(phys_addr_t paddr, size_t size)
         return;
 
     local_irq_save(flags);
+    get_cpu();
 
     start = start & (~(line_size - 1));
     end = ((end + line_size - 1) & (~(line_size - 1)));
@@ -197,6 +229,7 @@ void cpu_dma_inval_range_phy(phys_addr_t paddr, size_t size)
         start += line_size;
     }
 
+    put_cpu();
     local_irq_restore(flags);
 }
 EXPORT_SYMBOL(cpu_dma_inval_range_phy);
@@ -212,6 +245,7 @@ void cpu_dma_wb_range_phy(phys_addr_t paddr, size_t size)
         return;
 
     local_irq_save(flags);
+    get_cpu();
 
     start = start & (~(line_size - 1));
     end = ((end + line_size - 1) & (~(line_size - 1)));
@@ -223,6 +257,7 @@ void cpu_dma_wb_range_phy(phys_addr_t paddr, size_t size)
         start += line_size;
     }
 
+    put_cpu();
     local_irq_restore(flags);
 }
 EXPORT_SYMBOL(cpu_dma_wb_range_phy);
