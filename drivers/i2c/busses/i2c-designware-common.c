@@ -368,7 +368,13 @@ void i2c_dw_disable_int(struct dw_i2c_dev *dev)
 
 u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev)
 {
+#ifdef CONFIG_PC805_ERRATA_I2C_COMP_PARAM_1
+	//pc805 i2c hardware fifo depth 8 bytes
+	//rx_buf_depth[15:8]=7, tx_buf_depth[23:16]=7
+	return (0x70700);
+#else
 	return dw_readl(dev, DW_IC_COMP_PARAM_1);
+#endif
 }
 EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
 

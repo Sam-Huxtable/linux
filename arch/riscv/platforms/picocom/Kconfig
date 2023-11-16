@@ -17,4 +17,13 @@ config PICOCOM_PC805
 	help
       This is for Picocom PC805
     
+config PC805_ERRATA_I2C_COMP_PARAM_1
+	bool "for Picocom PC805 i2c errata"
+	depends on PICOCOM_PC805
+	default y
+	help
+	  This is for Picocom PC805 i2c errata. The i2c register IC_COMP_PARAM_1 read back is 0.
+	  So the i2c driver will process i2c transfer with fifo depth 1 Byte, and more than 1 Byte
+	  transfer failed. Correct it and return real hardware fifo depth 8 Bytes.
+
 endmenu
