@@ -209,21 +209,14 @@ static bool have_cpu_fpsimd_context(void)
 	return !preemptible() && __this_cpu_read(fpsimd_context_busy);
 }
 
-/*
- * Call __sve_free() directly only if you know task can't be scheduled
- * or preempted.
- */
-static void __sve_free(struct task_struct *task)
+static void *sve_free_atomic(struct task_struct *task)
 {
-	kfree(task->thread.sve_state);
-	task->thread.sve_state = NULL;
-}
+	void *sve_state = task->thread.sve_state;
 
-static void sve_free(struct task_struct *task)
-{
 	WARN_ON(test_tsk_thread_flag(task, TIF_SVE));
 
-	__sve_free(task);
+	task->thread.sve_state = NULL;
+	return sve_state;
 }
 
 /*
@@ -1022,6 +1015,7 @@ void fpsimd_thread_switch(struct task_struct *next)
 void fpsimd_flush_thread(void)
 {
 	int vl, supported_vl;
+	void *mem = NULL;
 
 	if (!system_supports_fpsimd())
 		return;
@@ -1034,7 +1028,7 @@ void fpsimd_flush_thread(void)
 
 	if (system_supports_sve()) {
 		clear_thread_flag(TIF_SVE);
-		sve_free(current);
+		mem = sve_free_atomic(current);
 
 		/*
 		 * Reset the task vector length as required.
@@ -1068,6 +1062,7 @@ void fpsimd_flush_thread(void)
 	}
 
 	put_cpu_fpsimd_context();
+	kfree(mem);
 }
 
 /*
