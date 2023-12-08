@@ -575,7 +575,11 @@ s32 wl_inform_bss_cache(struct bcm_cfg80211 *cfg)
 
 	WL_SCAN(("scanned AP count (%d)\n", bss_list->count));
 	bss_list = cfg->bss_list;
-	preempt_disable();
+	//preempt_disable();
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		migrate_disable();
+	else
+		preempt_disable();
 	bi = next_bss(bss_list, bi);
 	for_each_bss(bss_list, bi, i) {
 		err = wl_inform_single_bss(cfg, bi, false);
@@ -594,7 +598,11 @@ s32 wl_inform_bss_cache(struct bcm_cfg80211 *cfg)
 		}
 		node = node->next;
 	}
-	preempt_enable();
+	//preempt_enable();
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		migrate_enable();
+	else
+		preempt_enable();
 
 	return err;
 }
@@ -628,7 +636,11 @@ wl_inform_bss(struct bcm_cfg80211 *cfg)
 #ifdef ESCAN_CHANNEL_CACHE
 	reset_roam_cache(cfg);
 #endif /* ESCAN_CHANNEL_CACHE */
-	preempt_disable();
+	//preempt_disable();
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		migrate_disable();
+	else
+		preempt_disable();
 	bi = next_bss(bss_list, bi);
 	for_each_bss(bss_list, bi, i) {
 #ifdef ESCAN_CHANNEL_CACHE
@@ -639,7 +651,11 @@ wl_inform_bss(struct bcm_cfg80211 *cfg)
 			WL_ERR(("bss inform failed\n"));
 		}
 	}
-	preempt_enable();
+	//preempt_enable();
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		migrate_enable();
+	else
+		preempt_enable();
 #endif
 
 	if (cfg->autochannel && ndev) {

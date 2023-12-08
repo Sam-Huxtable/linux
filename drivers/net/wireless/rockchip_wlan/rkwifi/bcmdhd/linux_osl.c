@@ -1259,12 +1259,20 @@ BCMFASTPATH(osl_cpu_relax)(void)
 
 extern void osl_preempt_disable(osl_t *osh)
 {
-	preempt_disable();
+	//preempt_disable();
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		migrate_disable();
+	else
+		preempt_disable();
 }
 
 extern void osl_preempt_enable(osl_t *osh)
 {
-	preempt_enable();
+	//preempt_enable();
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		migrate_enable();
+	else
+		preempt_enable();
 }
 
 #if defined(BCMDBG_ASSERT) || defined(BCMASSERT_LOG)
