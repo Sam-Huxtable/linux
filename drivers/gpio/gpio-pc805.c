@@ -381,7 +381,7 @@ struct pad_reg {
 	PAD_PAD_CFG_CTRL_Type cfg_ctrl;
 };
 
-#define PC805_MAX_GPIO 40
+#define PC805_MAX_GPIO 48
 
 struct pc805_gpio {
 	struct gpio_chip chip;
