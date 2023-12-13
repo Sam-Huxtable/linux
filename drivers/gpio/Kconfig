@@ -245,6 +245,12 @@ config GPIO_ATCGPIO100
 	  Support for common GPIOs from the Andestech ATCGPIO100 IP core, found in
 	  Andes RISC-V AE350 platform.
 
+config GPIO_PC805
+	tristate "PC805 GPIO support"
+	help
+	  Support for common GPIOs from the PC805 IP core, found in
+	  RISC-V platform.
+
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
 	select GPIO_GENERIC

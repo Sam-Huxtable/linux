@@ -475,6 +475,13 @@ config ATCWDT200_WATCHDOG
 	  Support for Andes atcwdt200 watchdog. When the watchdog triggers the
 	  system will be reset.
 
+config PC805_WATCHDOG
+	tristate "PC805_WATCHDOG"
+	depends on RISCV 
+	help
+	  Support for  PC805 watchdog. When the watchdog triggers the
+	  system will be reset.
+
 config IXP4XX_WATCHDOG
 	tristate "IXP4xx Watchdog"
 	depends on ARCH_IXP4XX

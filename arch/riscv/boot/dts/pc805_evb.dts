@@ -424,4 +424,19 @@
 		interrupts = <93>;
 		interrupt-parent = <&plic0>;
 	};
+
+	gpio0:gpio@8202000 {
+        	compatible = "picocom,pc805-gpio";
+        	reg = <0x08202000 0x800>, /* Peripheral: gpio */
+              	<0x0820a000 0x800>; /* Peripheral: pad*/
+           	gpio-controller;
+           	#gpio-cells = <2>;
+        };
+
+	tps3851-dwt{
+                compatible = "picocom,pc805-wdt";
+                en-gpios = <&gpio0 32 0>;
+                wdi-gpios = <&gpio0 33 0>;
+                priority = <128>;
+        };
 };
