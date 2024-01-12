@@ -23,7 +23,6 @@
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -1534,7 +1533,6 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 	struct stm32_mdma_device *dmadev;
 	struct dma_device *dd;
 	struct device_node *of_node;
-	struct resource *res;
 	u32 nr_channels, nr_requests;
 	int i, count, ret;
 
@@ -1574,8 +1572,7 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 				       count);
 	dmadev->nr_ahb_addr_masks = count;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmadev->base = devm_ioremap_resource(&pdev->dev, res);
+	dmadev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dmadev->base))
 		return PTR_ERR(dmadev->base);
 

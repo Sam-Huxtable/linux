@@ -524,6 +524,19 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 		complete(&mas->xfer_done);
 	}
 
+	/*
+	 * It's safe or a good idea to Ack all of our interrupts at the end
+	 * of the function. Specifically:
+	 * - M_CMD_DONE_EN / M_RX_FIFO_LAST_EN: Edge triggered interrupts and
+	 *   clearing Acks. Clearing at the end relies on nobody else having
+	 *   started a new transfer yet or else we could be clearing _their_
+	 *   done bit, but everyone grabs the spinlock before starting a new
+	 *   transfer.
+	 * - M_RX_FIFO_WATERMARK_EN / M_TX_FIFO_WATERMARK_EN: These appear
+	 *   to be "latched level" interrupts so it's important to clear them
+	 *   _after_ you've handled the condition and always safe to do so
+	 *   since they'll re-assert if they're still happening.
+	 */
 	writel(m_irq, se->base + SE_GENI_M_IRQ_CLEAR);
 	spin_unlock_irqrestore(&mas->lock, flags);
 	return IRQ_HANDLED;
