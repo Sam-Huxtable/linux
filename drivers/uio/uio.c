@@ -739,8 +739,22 @@ static int uio_mmap_physical(struct vm_area_struct *vma)
 
 	vma->vm_ops = &uio_physical_vm_ops;
 	if (idev->info->mem[mi].memtype == UIO_MEM_PHYS)
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
+	{
+	#if defined(CONFIG_ARM64)
+                printk("uio_mmap_physical:  name = %s \n", idev->info->name);
+                if (strcmp(idev->info->name, "rk3399 uio") == 0)
+                {
+                        printk("rk3399 uio pgprot writecombine ...\n");
+                        vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+                }
+                else
+                {
+                        vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+                }
+	#else
+                vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	#endif
+	}
 	/*
 	 * We cannot use the vm_iomap_memory() helper here,
 	 * because vma->vm_pgoff is the map index we looked
