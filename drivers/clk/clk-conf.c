@@ -33,12 +33,9 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 			else
 				return rc;
 		}
-		if (clkspec.np == node && !clk_supplier) {
-			of_node_put(clkspec.np);
+		if (clkspec.np == node && !clk_supplier)
 			return 0;
-		}
 		pclk = of_clk_get_from_provider(&clkspec);
-		of_node_put(clkspec.np);
 		if (IS_ERR(pclk)) {
 			if (PTR_ERR(pclk) != -EPROBE_DEFER)
 				pr_warn("clk: couldn't get parent clock %d for %pOF\n",
@@ -51,12 +48,10 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 		if (rc < 0)
 			goto err;
 		if (clkspec.np == node && !clk_supplier) {
-			of_node_put(clkspec.np);
 			rc = 0;
 			goto err;
 		}
 		clk = of_clk_get_from_provider(&clkspec);
-		of_node_put(clkspec.np);
 		if (IS_ERR(clk)) {
 			if (PTR_ERR(clk) != -EPROBE_DEFER)
 				pr_warn("clk: couldn't get assigned clock %d for %pOF\n",
@@ -64,6 +59,8 @@ static int __set_clk_parents(struct device_node *node, bool clk_supplier)
 			rc = PTR_ERR(clk);
 			goto err;
 		}
+
+		pr_err("wxt_clk: clk %s to pclk:%s\n", __clk_get_name(clk), __clk_get_name(pclk));
 
 		rc = clk_set_parent(clk, pclk);
 		if (rc < 0)
@@ -98,13 +95,10 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
 				else
 					return rc;
 			}
-			if (clkspec.np == node && !clk_supplier) {
-				of_node_put(clkspec.np);
+			if (clkspec.np == node && !clk_supplier)
 				return 0;
-			}
 
 			clk = of_clk_get_from_provider(&clkspec);
-			of_node_put(clkspec.np);
 			if (IS_ERR(clk)) {
 				if (PTR_ERR(clk) != -EPROBE_DEFER)
 					pr_warn("clk: couldn't get clock %d for %pOF\n",

@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019-2020 Fuzhou Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "picocom-rk3399-scb.dtsi"
+#include "picocom-rk3399-linux.dtsi"
+
+/ {
+	model = "Picocom PC806SCB RK3399 (Linux)";
+	compatible = "rockchip,linux", "rockchip,rk3399-evb-ind-lpddr4-linux", "rockchip,rk3399";
+
+	chosen: chosen {
+		bootargs = "storagemedia=sd androidboot.storagemedia=sd androidboot.mode=normal androidboot.verifiedbootstate=orange androidboot.serialno=5649ac7e80d632a rw rootwait pci=pcie_bus_safe isolcpus=2-5 default_hugepagesz=2m hugepagesz=2m hugepages=256 hugepagesz=32m hugepages=8 isolcpus=2-5 earlycon=uart8250,mmio32,0xff1a0000 console=ttyFIQ0 root=PARTUUID=614";
+	};
+
+	iram: sram@ff8d0000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0xff8d0000 0x0 0x20000>;
+	};
+
+	test-power {
+		status = "okay";
+	};
+};
+
+&dmac_bus {
+	iram = <&iram>;
+	rockchip,force-iram;
+};
+
+&vopb {
+	status = "okay";
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+};
+
+&vopl_mmu {
+	status = "okay";
+};
+
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+/* DON'T PUT ANYTHING BELOW HERE.  PUT IT ABOVE PINCTRL */
+
