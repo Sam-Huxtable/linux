@@ -13,7 +13,7 @@
 	compatible = "rockchip,linux", "rockchip,rk3399-evb-ind-lpddr4-linux", "rockchip,rk3399";
 
 	chosen: chosen {
-		bootargs = "storagemedia=sd androidboot.storagemedia=sd androidboot.mode=normal androidboot.verifiedbootstate=orange androidboot.serialno=5649ac7e80d632a rw rootwait pci=pcie_bus_safe isolcpus=2-5 default_hugepagesz=2m hugepagesz=2m hugepages=256 hugepagesz=32m hugepages=8 isolcpus=2-5 earlycon=uart8250,mmio32,0xff1a0000 console=ttyFIQ0 root=PARTUUID=614";
+		bootargs = "storagemedia=sd androidboot.storagemedia=sd androidboot.mode=normal androidboot.verifiedbootstate=orange androidboot.serialno=5649ac7e80d632a rw rootwait pci=pcie_bus_safe isolcpus=2-5 pcie_aspm=off default_hugepagesz=2m hugepagesz=2m hugepages=256 hugepagesz=32m hugepages=8 isolcpus=2-5 earlycon=uart8250,mmio32,0xff1a0000 console=ttyFIQ0 root=PARTUUID=614";
 	};
 
 	iram: sram@ff8d0000 {
