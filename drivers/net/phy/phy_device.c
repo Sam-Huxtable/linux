@@ -2862,7 +2862,11 @@ EXPORT_SYMBOL(phy_get_internal_delay);
 
 static bool phy_drv_supports_irq(struct phy_driver *phydrv)
 {
+#ifdef CONFIG_MICREL_PHY
+	return phydrv->config_intr && phydrv->handle_interrupt;
+#else
 	return phydrv->config_intr && phydrv->ack_interrupt;
+#endif
 }
 
 /**
