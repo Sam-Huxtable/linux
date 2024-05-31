@@ -4303,6 +4303,13 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!netif_running(dev))
 		return -EINVAL;
 
+#ifdef CONFIG_MICREL_PHY
+    if (phy_has_hwtstamp(dev->phydev)) {
+        ret = phy_mii_ioctl(dev->phydev, rq, cmd);
+        return ret;
+    }
+#endif
+
 	switch (cmd) {
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
