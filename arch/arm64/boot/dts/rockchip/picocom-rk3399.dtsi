@@ -320,6 +320,13 @@
 		status = "disabled";
 	};
 
+	gmac_uio0: uio@fe300000 {
+		compatible = "rockchip,uio-gmac";
+		reg = <0x0 0xfe300000 0x0 0x10000>;
+		rockchip,ethernet = <&gmac>;
+		status = "disabled";
+	};
+
 	sdio0: mmc@fe310000 {
 		compatible = "rockchip,rk3399-dw-mshc",
 			     "rockchip,rk3288-dw-mshc";
