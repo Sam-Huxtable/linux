@@ -291,6 +291,20 @@
 	};
 };
 
+&spi5 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	max-freq = <48000000>; /* spi internal clk, don't modify */
+
+	spidev5: spi@0  {
+		compatible = "rockchip,spidev";
+		reg = <0>;
+		spi-max-frequency = <24000000>;
+		spi-lsb-first;
+	};
+};
+
 &i2c0 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <168>;
