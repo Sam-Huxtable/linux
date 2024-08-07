@@ -249,8 +249,8 @@
 	assigned-clock-parents = <&clkin_gmac>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins>, <&phy_intb>, <&phy_rstb>;
-	tx_delay = <0x22>;
-	rx_delay = <0x24>;
+	tx_delay = <0x27>;
+	rx_delay = <0x1a>;
 	status = "okay";
 
 	mdio {
