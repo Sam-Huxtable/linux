@@ -165,4 +165,9 @@ config UIO_HV_GENERIC
 	  to network and storage devices from userspace.
 
 	  If you compile this as a module, it will be called uio_hv_generic.
+
+config UIO_RK
+	tristate "Generic driver for Rockchip"
+	help
+	  If you compile this as a module, it will be called uio_rk.
 endif
