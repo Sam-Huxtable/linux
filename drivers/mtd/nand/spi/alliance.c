@@ -54,7 +54,7 @@ static int alliance_ooblayout_free(struct mtd_info *mtd, int section,
 
 static const struct mtd_ooblayout_ops alliance_ooblayout = {
 	.ecc = alliance_ooblayout_ecc,
-	.rfree = alliance_ooblayout_free,
+	.free = alliance_ooblayout_free,
 };
 
 static int alliance_ecc_get_status(struct spinand_device *spinand,
