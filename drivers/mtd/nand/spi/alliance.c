@@ -6,9 +6,7 @@
 
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <malloc.h>
 #include <linux/mtd/spinand.h>							  
-#include <stdio.h>
 #define SPINAND_MFR_ALLIANCE		0x52
 
 #define STATUS_ECC_LIMIT_BITFLIPS (3 << 4)
