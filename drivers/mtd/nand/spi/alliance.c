@@ -89,7 +89,7 @@ static const struct spinand_info alliance_spinand_table[] = {
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
 					      &update_cache_variants),
-		     SPINANAD_HAS_QE_BIT,
+		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&alliance_ooblayout, alliance_ecc_get_status)),
 };
 
