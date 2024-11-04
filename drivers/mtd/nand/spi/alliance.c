@@ -144,7 +144,7 @@ static const struct spinand_info alliance_spinand_table[] = {
 static const struct spinand_manufacturer_ops alliance_spinand_manuf_ops = {
 };
 
-const struct spinand_manufacturer alliance_spinand_manuf_ops = {
+const struct spinand_manufacturer alliance_spinand_manufacturer = {
 	.id = SPINAND_MFR_ALLIANCEMEMORY,
 	.name = "AllianceMemory",
 	.chips = alliance_spinand_table,
