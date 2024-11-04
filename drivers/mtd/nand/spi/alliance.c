@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2020 AllianceMemory.
- *
+ * Author: Mario Kicherer <dev@kicherer.org>
  */
 
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/mtd/spinand.h>							  
-#define SPINAND_MFR_ALLIANCE		0x52
+#include <linux/mtd/spinand.h>
 
-#define STATUS_ECC_LIMIT_BITFLIPS (3 << 4)
+#define SPINAND_MFR_ALLIANCEMEMORY	0x52
+
+#define AM_STATUS_ECC_BITMASK		(3 << 4)
+
+#define AM_STATUS_ECC_NONE_DETECTED	(0 << 4)
+#define AM_STATUS_ECC_CORRECTED		(1 << 4)
+#define AM_STATUS_ECC_ERRORED		(2 << 4)
+#define AM_STATUS_ECC_MAX_CORRECTED	(3 << 4)
 
 static SPINAND_OP_VARIANTS(read_cache_variants,
-		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 2, NULL, 0),
+		SPINAND_PAGE_READ_FROM_CACHE_QUADIO_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X4_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_DUALIO_OP(0, 1, NULL, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_X2_OP(0, 1, NULL, 0),
@@ -20,59 +25,101 @@ static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_OP(false, 0, 1, NULL, 0));
 
 static SPINAND_OP_VARIANTS(write_cache_variants,
-		SPINAND_PROG_LOAD_X4(true, 0, NULL, 0),
-		SPINAND_PROG_LOAD(true, 0, NULL, 0));
+			   SPINAND_PROG_LOAD_X4(true, 0, NULL, 0),
+			   SPINAND_PROG_LOAD(true, 0, NULL, 0));
 
 static SPINAND_OP_VARIANTS(update_cache_variants,
-		SPINAND_PROG_LOAD_X4(false, 0, NULL, 0),
-		SPINAND_PROG_LOAD(false, 0, NULL, 0));
+			   SPINAND_PROG_LOAD_X4(false, 0, NULL, 0),
+			   SPINAND_PROG_LOAD(false, 0, NULL, 0));
 
-static int alliance_ooblayout_ecc(struct mtd_info *mtd, int section,
-				  struct mtd_oob_region *region)
+static int am_get_eccsize(struct mtd_info *mtd)
 {
-	if (section)
-		return -ERANGE;
+	if (mtd->oobsize == 64)
+		return 0x20;
+	else if (mtd->oobsize == 128)
+		return 0x38;
+	else if (mtd->oobsize == 256)
+		return 0x70;
+	else
+		return -EINVAL;
+}
 
-	region->offset = mtd->oobsize / 2;
-	region->length = mtd->oobsize / 2;
+static int am_ooblayout_ecc(struct mtd_info *mtd, int section,
+			    struct mtd_oob_region *region)
+{
+	int ecc_bytes;
+
+	ecc_bytes = am_get_eccsize(mtd);
+	if (ecc_bytes < 0)
+		return ecc_bytes;
+
+	region->offset = mtd->oobsize - ecc_bytes;
+	region->length = ecc_bytes;
 
 	return 0;
 }
 
-static int alliance_ooblayout_free(struct mtd_info *mtd, int section,
-				   struct mtd_oob_region *region)
+static int am_ooblayout_free(struct mtd_info *mtd, int section,
+			     struct mtd_oob_region *region)
 {
+	int ecc_bytes;
+
 	if (section)
 		return -ERANGE;
 
-	/* Reserve 1 bytes for the BBM. */
-	region->offset = 1;
-	region->length = (mtd->oobsize / 2) - 1;
+	ecc_bytes = am_get_eccsize(mtd);
+	if (ecc_bytes < 0)
+		return ecc_bytes;
+
+	/*
+	 * It is unclear how many bytes are used for the bad block marker. We
+	 * reserve the common two bytes here.
+	 *
+	 * The free area in this kind of flash is divided into chunks where the
+	 * first 4 bytes of each chunk are unprotected. The number of chunks
+	 * depends on the specific model. The models with 4096+256 bytes pages
+	 * have 8 chunks, the others 4 chunks.
+	 */
+
+	region->offset = 2;
+	region->length = mtd->oobsize - 2 - ecc_bytes;
 
 	return 0;
 }
 
-static const struct mtd_ooblayout_ops alliance_ooblayout = {
-	.ecc = alliance_ooblayout_ecc,
-	.free = alliance_ooblayout_free,
+static const struct mtd_ooblayout_ops am_ooblayout = {
+	.ecc = am_ooblayout_ecc,
+	.free = am_ooblayout_free,
 };
 
-static int alliance_ecc_get_status(struct spinand_device *spinand,
-				   u8 status)
+static int am_ecc_get_status(struct spinand_device *spinand, u8 status)
 {
-	switch (status & STATUS_ECC_MASK) {
-	case STATUS_ECC_NO_BITFLIPS:
+	switch (status & AM_STATUS_ECC_BITMASK) {
+	case AM_STATUS_ECC_NONE_DETECTED:
 		return 0;
 
-	case STATUS_ECC_UNCOR_ERROR:
+	case AM_STATUS_ECC_CORRECTED:
+		/*
+		 * use oobsize to determine the flash model and the maximum of
+		 * correctable errors and return maximum - 1 by convention
+		 */
+		if (spinand->base.mtd.oobsize == 64)
+			return 3;
+		else
+			return 7;
+
+	case AM_STATUS_ECC_ERRORED:
 		return -EBADMSG;
 
-	case STATUS_ECC_HAS_BITFLIPS:
-		return 1;
-
-	case STATUS_ECC_LIMIT_BITFLIPS:
-		return 3;
-
+	case AM_STATUS_ECC_MAX_CORRECTED:
+		/*
+		 * use oobsize to determine the flash model and the maximum of
+		 * correctable errors
+		 */
+		if (spinand->base.mtd.oobsize == 64)
+			return 4;
+		else
+			return 8;
 
 	default:
 		break;
@@ -81,47 +128,26 @@ static int alliance_ecc_get_status(struct spinand_device *spinand,
 	return -EINVAL;
 }
 
-static const struct spinand_info alliance_spinand_table[] = {		     
-	SPINAND_INFO("AS5F18G04SND-10LIN", 
-		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_ADDR, 0x8D),
+static const struct spinand_info alliancememory_spinand_table[] = {
+	SPINAND_INFO("AS5F18G04SND",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x8D),
 		     NAND_MEMORG(1, 4096, 256, 64, 4096, 80, 1, 1, 1),
-		     NAND_ECCREQ(8, 512),
+		     NAND_ECCREQ(4, 512),
 		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					      &write_cache_variants,
 					      &update_cache_variants),
-		     0,
-		     SPINAND_ECCINFO(&alliance_ooblayout, alliance_ecc_get_status)),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&am_ooblayout,
+				     am_ecc_get_status)),
 };
 
-static int alliance_spianand_detect(struct spinand_device *spinand)
-{
-	u8 *id = spinand->id.data;
-	int ret;
-	
-	/*
-	 * Macronix SPI NAND read ID needs a dummy byte, so the first byte in
-	 * raw_id is garbage.
-	 */
-	if (id[0] != SPINAND_MFR_ALLIANCE)
-		return 0;
-	
-	ret = spinand_match_and_init(spinand, alliance_spinand_table,
-				     ARRAY_SIZE(alliance_spinand_table),
-				     id[1]);
-	
-	if (ret)
-		return ret;
-	
-	return 1;
-}
-
-static const struct spinand_manufacturer_ops alliance_spinand_manuf_ops = {
+static const struct spinand_manufacturer_ops alliancememory_spinand_manuf_ops = {
 };
 
-const struct spinand_manufacturer alliance_spinand_manufacturer = {
-	.id = SPINAND_MFR_ALLIANCE,
-	.name = "Alliance",
- 	.chips = alliance_spinand_table,
-  	.nchips = ARRAY_SIZE(alliance_spinand_table),
-	.ops = &alliance_spinand_manuf_ops,
+const struct spinand_manufacturer alliancememory_spinand_manufacturer = {
+	.id = SPINAND_MFR_ALLIANCEMEMORY,
+	.name = "AllianceMemory",
+	.chips = alliancememory_spinand_table,
+	.nchips = ARRAY_SIZE(alliancememory_spinand_table),
+	.ops = &alliancememory_spinand_manuf_ops,
 };
