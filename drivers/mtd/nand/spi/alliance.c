@@ -128,7 +128,7 @@ static int am_ecc_get_status(struct spinand_device *spinand, u8 status)
 	return -EINVAL;
 }
 
-static const struct spinand_info alliancememory_spinand_table[] = {
+static const struct spinand_info alliance_spinand_table[] = {
 	SPINAND_INFO("AS5F18G04SND",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x8D),
 		     NAND_MEMORG(1, 4096, 256, 64, 4096, 80, 1, 1, 1),
@@ -141,13 +141,13 @@ static const struct spinand_info alliancememory_spinand_table[] = {
 				     am_ecc_get_status)),
 };
 
-static const struct spinand_manufacturer_ops alliancememory_spinand_manuf_ops = {
+static const struct spinand_manufacturer_ops alliance_spinand_manuf_ops = {
 };
 
-const struct spinand_manufacturer alliancememory_spinand_manufacturer = {
+const struct spinand_manufacturer alliance_spinand_manuf_ops = {
 	.id = SPINAND_MFR_ALLIANCEMEMORY,
 	.name = "AllianceMemory",
-	.chips = alliancememory_spinand_table,
-	.nchips = ARRAY_SIZE(alliancememory_spinand_table),
-	.ops = &alliancememory_spinand_manuf_ops,
+	.chips = alliance_spinand_table,
+	.nchips = ARRAY_SIZE(alliance_spinand_table),
+	.ops = &alliance_spinand_manuf_ops,
 };
