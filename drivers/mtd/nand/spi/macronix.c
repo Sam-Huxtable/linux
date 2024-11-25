@@ -128,7 +128,7 @@ static const struct spinand_info macronix_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
-				     macronix_ecc_get_status)),
+				     NULL)),
 };
 
 static const struct spinand_manufacturer_ops macronix_spinand_manuf_ops = {
