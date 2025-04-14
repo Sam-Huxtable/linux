@@ -65,7 +65,7 @@ static int Issi_ooblayout_free(struct mtd_info *mtd, int section,
 
 static const struct mtd_ooblayout_ops Issi_ooblayout = {
 	.ecc = Issi_ooblayout_ecc,
-	.rfree = Issi_ooblayout_free,
+	.free = Issi_ooblayout_free,
 };
 
 static int IS37SMW04G8B_ecc_get_status(struct spinand_device *spinand, uint8_t status)
@@ -89,7 +89,7 @@ static int IS37SMW04G8B_ecc_get_status(struct spinand_device *spinand, uint8_t s
 static const struct spinand_info issi_spinand_table[] = {
     SPINAND_INFO("IS37SMW04G8B", 
              SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x35),
-             NAND_MEMORG(1, 2048, 128, 64, 2048, 1, 2, 1),
+             NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 2, 1),
              NAND_ECCREQ(8, 544),
 		         SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
 					                            &write_cache_variants,
