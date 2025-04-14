@@ -245,6 +245,7 @@ extern const struct spinand_manufacturer paragon_spinand_manufacturer;
 extern const struct spinand_manufacturer toshiba_spinand_manufacturer;
 extern const struct spinand_manufacturer winbond_spinand_manufacturer;
 extern const struct spinand_manufacturer alliance_spinand_manufacturer;
+extern const struct spinand_manufacturer issi_spinand_manufacturer;
 
 /**
  * struct spinand_op_variants - SPI NAND operation variants
