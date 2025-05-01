@@ -41,26 +41,23 @@ static SPINAND_OP_VARIANTS(update_cache_variants,
 static int Issi_ooblayout_ecc(struct mtd_info *mtd, int section,
 				  struct mtd_oob_region *region)
 {
-	if (section)
-		return -ERANGE;
+    if (section > 0)
+        return -ERANGE;
 
-	region->offset = mtd->oobsize / 2;
-	region->length = mtd->oobsize / 2;
-
-	return 0;
+    region->offset = 64;    // ECC occupies upper half of OOB
+    region->length = 64;
+    return 0;
 }
 
 static int Issi_ooblayout_free(struct mtd_info *mtd, int section,
 				   struct mtd_oob_region *region)
 {
-	if (section)
-		return -ERANGE;
+    if (section > 0)
+        return -ERANGE;
 
-	/* Reserve 1 bytes for the BBM. */
-	region->offset = 1;
-	region->length = (mtd->oobsize / 2) - 1;
-
-	return 0;
+    region->offset = 0;     // Free area is in the first half of OOB
+    region->length = 64;
+    return 0;
 }
 
 static const struct mtd_ooblayout_ops Issi_ooblayout = {
