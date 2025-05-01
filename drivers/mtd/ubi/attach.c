@@ -443,6 +443,9 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 	struct ubi_vid_io_buf *vidb = NULL;
 	unsigned long long sqnum2 = be64_to_cpu(vid_hdr->sqnum);
 
+	printf("Sequence2: %d            ",sqnum2);
+	printf("Sequence2: %d          ",  aeb->sqnum);
+
 	if (sqnum2 == aeb->sqnum) {
 		/*
 		 * This must be a really ancient UBI image which has been
