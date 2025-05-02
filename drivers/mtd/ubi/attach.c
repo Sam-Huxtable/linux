@@ -75,6 +75,7 @@
 #include <linux/math64.h>
 #include <linux/random.h>
 #include "ubi.h"
+#include <stdio.h>
 
 static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai);
 
