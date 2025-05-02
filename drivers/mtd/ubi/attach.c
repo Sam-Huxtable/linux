@@ -75,7 +75,6 @@
 #include <linux/math64.h>
 #include <linux/random.h>
 #include "ubi.h"
-#include <stdio.h>
 
 static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai);
 
@@ -443,7 +442,7 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 	uint32_t data_crc, crc;
 	struct ubi_vid_io_buf *vidb = NULL;
 	unsigned long long sqnum2 = be64_to_cpu(vid_hdr->sqnum);
-printf("sequence:%llu              ", sqnum2);
+pr_info("sequence:%llu              ", sqnum2);
 
 	if (sqnum2 == aeb->sqnum) {
 		/*
